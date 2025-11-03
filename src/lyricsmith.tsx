@@ -1,0 +1,764 @@
+import React, { useReducer } from 'react';
+import { Upload, Download, Undo, Redo, Moon, Sun, AlertCircle } from 'lucide-react';
+
+// ============================================================================
+// TYPES
+// ============================================================================
+
+type AlphabetType = 'latin' | 'cyrillic' | 'cjk' | 'arabic';
+
+interface VocalData {
+  time: string;
+  note: string;
+  length: string;
+  lyric: string;
+  originalLyric: string;
+}
+
+interface ParsedXMLData {
+  header: string;
+  vocals: VocalData[];
+  count: number;
+}
+
+interface AppState {
+  xmlData: ParsedXMLData | null;
+  plainTextRaw: string;
+  lineGroups: number[][];
+  plainTextLines: string[][];
+  xmlSyllables: string[];
+  alphabet: AlphabetType;
+  originalSyllableCount: number;
+  currentSyllableCount: number;
+  darkMode: boolean;
+  error: string | null;
+}
+
+type ActionType =
+  | { type: 'import_xml'; payload: string }
+  | { type: 'import_plain_text'; payload: string }
+  | { type: 'toggle_dark_mode' }
+  | { type: 'set_error'; payload: string }
+  | { type: 'clear_error' };
+
+interface ThemeClasses {
+  background: string;
+  text: string;
+  textMuted: string;
+  cardBackground: string;
+  border: string;
+  inputBackground: string;
+  buttonSecondary: string;
+}
+
+// ============================================================================
+// CONSTANTS
+// ============================================================================
+
+const ALPHABET_TYPES: Record<string, AlphabetType> = {
+  LATIN: 'latin',
+  CYRILLIC: 'cyrillic',
+  CJK: 'cjk',
+  ARABIC: 'arabic'
+};
+
+const UNICODE_RANGES = {
+  CYRILLIC: /[\u0400-\u04FF]/,
+  CJK: /[\u4E00-\u9FFF\u3040-\u309F\u30A0-\u30FF]/,
+  ARABIC: /[\u0600-\u06FF]/,
+  LATIN_VOWELS: /[aeiouAEIOU]/
+};
+
+const LINE_END_MARKER = '+';
+const SYLLABLE_SEPARATOR = '-';
+
+const ACTION_TYPES = {
+  IMPORT_XML: 'import_xml' as const,
+  IMPORT_PLAIN_TEXT: 'import_plain_text' as const,
+  TOGGLE_DARK_MODE: 'toggle_dark_mode' as const,
+  SET_ERROR: 'set_error' as const,
+  CLEAR_ERROR: 'clear_error' as const
+};
+
+// ============================================================================
+// UTILITY FUNCTIONS - XML Parsing
+// ============================================================================
+
+function extractXMLHeader(xmlString: string): string {
+  const vocalsStartIndex = xmlString.indexOf('<vocals');
+  return vocalsStartIndex >= 0 ? xmlString.substring(0, vocalsStartIndex) : '';
+}
+
+function createVocalObject(vocalElement: Element): VocalData {
+  return {
+    time: vocalElement.getAttribute('time') || '',
+    note: vocalElement.getAttribute('note') || '',
+    length: vocalElement.getAttribute('length') || '',
+    lyric: vocalElement.getAttribute('lyric') || '',
+    originalLyric: vocalElement.getAttribute('lyric') || ''
+  };
+}
+
+function parseVocalsFromXML(xmlDocument: Document): VocalData[] {
+  const vocalElements = xmlDocument.getElementsByTagName('vocal');
+  return Array.from(vocalElements).map(createVocalObject);
+}
+
+function validateXMLDocument(xmlDocument: Document): void {
+  const parserErrors = xmlDocument.getElementsByTagName("parsererror");
+  if (parserErrors.length > 0) {
+    throw new Error("Invalid XML format");
+  }
+}
+
+function parseXMLString(xmlString: string): Document {
+  const parser = new DOMParser();
+  const xmlDocument = parser.parseFromString(xmlString, "text/xml");
+  validateXMLDocument(xmlDocument);
+  return xmlDocument;
+}
+
+function parseXML(xmlString: string): ParsedXMLData {
+  const xmlDocument = parseXMLString(xmlString);
+  const header = extractXMLHeader(xmlString);
+  const vocals = parseVocalsFromXML(xmlDocument);
+  
+  return {
+    header,
+    vocals,
+    count: vocals.length
+  };
+}
+
+// ============================================================================
+// UTILITY FUNCTIONS - Line Grouping
+// ============================================================================
+
+function isLineEndMarker(lyric: string): boolean {
+  return lyric.endsWith(LINE_END_MARKER);
+}
+
+function groupVocalsIntoLines(vocals: VocalData[]): number[][] {
+  const lines: number[][] = [];
+  let currentLine: number[] = [];
+  
+  vocals.forEach((vocal, index) => {
+    currentLine.push(index);
+    
+    if (isLineEndMarker(vocal.lyric)) {
+      lines.push(currentLine);
+      currentLine = [];
+    }
+  });
+  
+  if (currentLine.length > 0) {
+    lines.push(currentLine);
+  }
+  
+  return lines;
+}
+
+// ============================================================================
+// UTILITY FUNCTIONS - Alphabet Detection
+// ============================================================================
+
+function containsCyrillic(text: string): boolean {
+  return UNICODE_RANGES.CYRILLIC.test(text);
+}
+
+function containsCJK(text: string): boolean {
+  return UNICODE_RANGES.CJK.test(text);
+}
+
+function containsArabic(text: string): boolean {
+  return UNICODE_RANGES.ARABIC.test(text);
+}
+
+function detectAlphabet(text: string): AlphabetType {
+  if (containsCyrillic(text)) return ALPHABET_TYPES.CYRILLIC;
+  if (containsCJK(text)) return ALPHABET_TYPES.CJK;
+  if (containsArabic(text)) return ALPHABET_TYPES.ARABIC;
+  return ALPHABET_TYPES.LATIN;
+}
+
+// ============================================================================
+// UTILITY FUNCTIONS - Text Processing
+// ============================================================================
+
+function splitIntoCharacters(text: string): string[] {
+  return text.split('').filter(char => char.trim().length > 0);
+}
+
+function splitLatinIntoSyllables(text: string): string[] {
+  const words = text.split(/\s+/);
+  const syllables: string[] = [];
+  
+  words.forEach(word => {
+    const parts = word.split(new RegExp(`(?=${UNICODE_RANGES.LATIN_VOWELS.source})`));
+    parts.forEach(part => {
+      const trimmedPart = part.trim();
+      if (trimmedPart) {
+        syllables.push(trimmedPart);
+      }
+    });
+  });
+  
+  return syllables.length > 0 ? syllables : [text];
+}
+
+function splitTextBySyllables(text: string, alphabetType: AlphabetType): string[] {
+  const isLatinScript = alphabetType === ALPHABET_TYPES.LATIN;
+  return isLatinScript ? splitLatinIntoSyllables(text) : splitIntoCharacters(text);
+}
+
+function splitIntoNonEmptyLines(text: string): string[] {
+  return text.split('\n').filter(line => line.trim().length > 0);
+}
+
+function parseTextIntoSyllables(text: string, alphabetType: AlphabetType): string[][] {
+  const lines = splitIntoNonEmptyLines(text);
+  return lines.map(line => splitTextBySyllables(line, alphabetType));
+}
+
+// ============================================================================
+// STATE MANAGEMENT
+// ============================================================================
+
+function createInitialState(): AppState {
+  return {
+    xmlData: null,
+    plainTextRaw: '',
+    lineGroups: [],
+    plainTextLines: [],
+    xmlSyllables: [],
+    alphabet: ALPHABET_TYPES.LATIN,
+    originalSyllableCount: 0,
+    currentSyllableCount: 0,
+    darkMode: false,
+    error: null
+  };
+}
+
+function handleXMLImport(state: AppState, xmlString: string): AppState {
+  try {
+    const xmlData = parseXML(xmlString);
+    const lineGroups = groupVocalsIntoLines(xmlData.vocals);
+    const xmlSyllables = xmlData.vocals.map(vocal => vocal.lyric);
+    
+    return {
+      ...state,
+      xmlData,
+      lineGroups,
+      xmlSyllables,
+      originalSyllableCount: xmlData.count,
+      currentSyllableCount: xmlData.count,
+      error: null
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return {
+      ...state,
+      error: `XML Import Error: ${errorMessage}`
+    };
+  }
+}
+
+function handlePlainTextImport(state: AppState, plainText: string): AppState {
+  try {
+    const alphabet = detectAlphabet(plainText);
+    const plainTextLines = parseTextIntoSyllables(plainText, alphabet);
+    
+    return {
+      ...state,
+      plainTextRaw: plainText,
+      plainTextLines,
+      alphabet,
+      error: null
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return {
+      ...state,
+      error: `Text Import Error: ${errorMessage}`
+    };
+  }
+}
+
+function reducer(state: AppState, action: ActionType): AppState {
+  switch (action.type) {
+    case ACTION_TYPES.IMPORT_XML:
+      return handleXMLImport(state, action.payload);
+      
+    case ACTION_TYPES.IMPORT_PLAIN_TEXT:
+      return handlePlainTextImport(state, action.payload);
+      
+    case ACTION_TYPES.TOGGLE_DARK_MODE:
+      return { ...state, darkMode: !state.darkMode };
+      
+    case ACTION_TYPES.SET_ERROR:
+      return { ...state, error: action.payload };
+      
+    case ACTION_TYPES.CLEAR_ERROR:
+      return { ...state, error: null };
+      
+    default:
+      return state;
+  }
+}
+
+// ============================================================================
+// COMPONENTS - Utilities
+// ============================================================================
+
+function getThemeClasses(darkMode: boolean): ThemeClasses {
+  return {
+    background: darkMode ? 'bg-gray-900' : 'bg-white',
+    text: darkMode ? 'text-gray-100' : 'text-gray-900',
+    textMuted: darkMode ? 'text-gray-400' : 'text-gray-600',
+    cardBackground: darkMode ? 'bg-gray-800' : 'bg-gray-50',
+    border: darkMode ? 'border-gray-600' : 'border-gray-300',
+    inputBackground: darkMode ? 'bg-gray-700' : 'bg-white',
+    buttonSecondary: darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'
+  };
+}
+
+// ============================================================================
+// COMPONENTS - File Upload
+// ============================================================================
+
+interface FileUploadButtonProps {
+  label: string;
+  accept: string;
+  onFileSelect: (content: string) => void;
+  className: string;
+  children: React.ReactNode;
+}
+
+function FileUploadButton({ accept, onFileSelect, className, children }: FileUploadButtonProps) {
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const result = e.target?.result;
+      if (typeof result === 'string') {
+        onFileSelect(result);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  return (
+    <label className={`block px-4 py-2 rounded cursor-pointer text-center ${className}`}>
+      {children}
+      <input
+        type="file"
+        accept={accept}
+        onChange={handleFileChange}
+        className="hidden"
+      />
+    </label>
+  );
+}
+
+// ============================================================================
+// COMPONENTS - Import Section
+// ============================================================================
+
+interface TextImportAreaProps {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+  theme: ThemeClasses;
+}
+
+function TextImportArea({ value, onChange, placeholder, theme }: TextImportAreaProps) {
+  return (
+    <textarea
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className={`w-full h-32 p-2 border ${theme.border} rounded text-sm ${theme.inputBackground} ${theme.text}`}
+      placeholder={placeholder}
+    />
+  );
+}
+
+interface ImportPanelProps {
+  onImport: (content: string) => void;
+  theme: ThemeClasses;
+}
+
+function XMLImportPanel({ onImport, theme }: ImportPanelProps) {
+  const [xmlText, setXmlText] = React.useState('');
+
+  const handleTextChange = (text: string) => {
+    setXmlText(text);
+    if (text.trim()) {
+      onImport(text);
+    }
+  };
+
+  return (
+    <div>
+      <h3 className={`text-lg font-semibold mb-3 ${theme.text}`}>
+        1. Import XML File (EOF Export)
+      </h3>
+      <FileUploadButton
+        label="Choose XML File"
+        accept=".xml"
+        onFileSelect={(content) => {
+          setXmlText(content);
+          onImport(content);
+        }}
+        className="mb-2 bg-blue-500 hover:bg-blue-600 text-white"
+      >
+        <Upload className="inline mr-2" size={18} />
+        Choose XML File
+      </FileUploadButton>
+      <p className={`text-sm mb-2 ${theme.textMuted}`}>
+        Or paste XML content:
+      </p>
+      <TextImportArea
+        value={xmlText}
+        onChange={handleTextChange}
+        placeholder="Paste XML content here..."
+        theme={theme}
+      />
+    </div>
+  );
+}
+
+function PlainTextImportPanel({ onImport, theme }: ImportPanelProps) {
+  const [plainText, setPlainText] = React.useState('');
+
+  const handleTextChange = (text: string) => {
+    setPlainText(text);
+    if (text.trim()) {
+      onImport(text);
+    }
+  };
+
+  return (
+    <div>
+      <h3 className={`text-lg font-semibold mb-3 ${theme.text}`}>
+        2. Import Correct Lyrics (Plain Text)
+      </h3>
+      <FileUploadButton
+        label="Choose TXT File"
+        accept=".txt"
+        onFileSelect={(content) => {
+          setPlainText(content);
+          onImport(content);
+        }}
+        className="mb-2 bg-green-500 hover:bg-green-600 text-white"
+      >
+        <Upload className="inline mr-2" size={18} />
+        Choose TXT File
+      </FileUploadButton>
+      <p className={`text-sm mb-2 ${theme.textMuted}`}>
+        Or paste plain text:
+      </p>
+      <TextImportArea
+        value={plainText}
+        onChange={handleTextChange}
+        placeholder="Paste correct lyrics here (one line per lyric line)..."
+        theme={theme}
+      />
+    </div>
+  );
+}
+
+interface ImportSectionProps {
+  onImportXML: (content: string) => void;
+  onImportPlainText: (content: string) => void;
+  darkMode: boolean;
+}
+
+function ImportSection({ onImportXML, onImportPlainText, darkMode }: ImportSectionProps) {
+  const theme = getThemeClasses(darkMode);
+
+  return (
+    <div className={`p-6 ${theme.cardBackground} rounded-lg mb-6`}>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <XMLImportPanel onImport={onImportXML} theme={theme} />
+        <PlainTextImportPanel onImport={onImportPlainText} theme={theme} />
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// COMPONENTS - Control Bar
+// ============================================================================
+
+interface SyllableCounterProps {
+  originalCount: number;
+  currentCount: number;
+  theme: ThemeClasses;
+}
+
+function SyllableCounter({ originalCount, currentCount, theme }: SyllableCounterProps) {
+  return (
+    <div className={`text-sm ${theme.text}`}>
+      Original: <span className="font-bold">{originalCount}</span> | 
+      Current: <span className="font-bold">{currentCount}</span>
+    </div>
+  );
+}
+
+interface ControlBarProps {
+  originalCount: number;
+  currentCount: number;
+  darkMode: boolean;
+  onToggleDarkMode: () => void;
+}
+
+function ControlBar({ originalCount, currentCount, darkMode, onToggleDarkMode }: ControlBarProps) {
+  const theme = getThemeClasses(darkMode);
+  
+  return (
+    <div className={`p-4 ${theme.cardBackground} rounded-lg mb-6 flex items-center justify-between flex-wrap gap-4`}>
+      <div className="flex gap-2">
+        <button className={`px-4 py-2 ${theme.buttonSecondary} rounded ${theme.text}`}>
+          <Undo size={18} className="inline mr-1" />
+          Undo
+        </button>
+        <button className={`px-4 py-2 ${theme.buttonSecondary} rounded ${theme.text}`}>
+          <Redo size={18} className="inline mr-1" />
+          Redo
+        </button>
+      </div>
+      
+      <SyllableCounter 
+        originalCount={originalCount} 
+        currentCount={currentCount} 
+        theme={theme}
+      />
+      
+      <div className="flex gap-2">
+        <button
+          onClick={onToggleDarkMode}
+          className={`px-4 py-2 ${theme.buttonSecondary} rounded ${theme.text}`}
+          aria-label="Toggle dark mode"
+        >
+          {darkMode ? <Sun size={18} /> : <Moon size={18} />}
+        </button>
+        <button className="px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded">
+          <Download size={18} className="inline mr-1" />
+          Export XML
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// COMPONENTS - Syllable Display
+// ============================================================================
+
+interface SyllableButtonProps {
+  children: React.ReactNode;
+  variant: 'xml' | 'plain';
+  theme: ThemeClasses;
+}
+
+function SyllableButton({ children, variant, theme }: SyllableButtonProps) {
+  const variantClasses = {
+    xml: (isDark: boolean) => isDark ? 'bg-gray-700 hover:bg-gray-600' : 'bg-blue-100 hover:bg-blue-200',
+    plain: (isDark: boolean) => isDark ? 'bg-gray-800 hover:bg-gray-700' : 'bg-green-100 hover:bg-green-200'
+  };
+
+  const isDarkMode = theme.background.includes('gray-900');
+  const bgClass = variantClasses[variant](isDarkMode);
+
+  return (
+    <button className={`px-3 py-2 ${bgClass} ${theme.text} rounded border ${theme.border} font-mono text-sm min-w-[50px]`}>
+      {children}
+    </button>
+  );
+}
+
+interface SyllableRowProps {
+  syllables: string[];
+  variant: 'xml' | 'plain';
+  theme: ThemeClasses;
+}
+
+function SyllableRow({ syllables, variant, theme }: SyllableRowProps) {
+  return (
+    <div className="flex flex-wrap gap-1">
+      {syllables.map((syllable, index) => (
+        <SyllableButton key={`${variant}-${index}`} variant={variant} theme={theme}>
+          {syllable}
+        </SyllableButton>
+      ))}
+    </div>
+  );
+}
+
+interface LyricLineProps {
+  lineNumber: number;
+  xmlSyllables: string[];
+  plainTextSyllables: string[] | undefined;
+  theme: ThemeClasses;
+}
+
+function LyricLine({ lineNumber, xmlSyllables, plainTextSyllables, theme }: LyricLineProps) {
+  return (
+    <div className={`p-4 border ${theme.border} rounded-lg`}>
+      <div className={`text-xs ${theme.textMuted} mb-2`}>
+        Line {lineNumber}
+      </div>
+      
+      <SyllableRow syllables={xmlSyllables} variant="xml" theme={theme} />
+      
+      <div className="mb-2" />
+      
+      {plainTextSyllables ? (
+        <SyllableRow syllables={plainTextSyllables} variant="plain" theme={theme} />
+      ) : (
+        <span className={`${theme.textMuted} italic text-sm`}>
+          No matching plain text line
+        </span>
+      )}
+    </div>
+  );
+}
+
+interface EmptyStateProps {
+  theme: ThemeClasses;
+}
+
+function EmptyState({ theme }: EmptyStateProps) {
+  return (
+    <div className={`text-center py-12 ${theme.textMuted}`}>
+      <p className="text-lg">Import XML and plain text files to begin</p>
+    </div>
+  );
+}
+
+interface SyllableDisplayProps {
+  state: AppState;
+}
+
+function SyllableDisplay({ state }: SyllableDisplayProps) {
+  const { xmlData, lineGroups, plainTextLines, darkMode } = state;
+  const theme = getThemeClasses(darkMode);
+  
+  if (!xmlData || lineGroups.length === 0) {
+    return <EmptyState theme={theme} />;
+  }
+
+  return (
+    <div className="space-y-6">
+      {lineGroups.map((vocalIndices, lineIndex) => {
+        const xmlSyllables = vocalIndices.map(idx => xmlData.vocals[idx].lyric);
+        const plainTextSyllables = plainTextLines[lineIndex];
+        
+        return (
+          <LyricLine
+            key={lineIndex}
+            lineNumber={lineIndex + 1}
+            xmlSyllables={xmlSyllables}
+            plainTextSyllables={plainTextSyllables}
+            theme={theme}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+// ============================================================================
+// COMPONENTS - Error Display
+// ============================================================================
+
+interface ErrorBannerProps {
+  message: string;
+  onDismiss: () => void;
+  darkMode: boolean;
+}
+
+function ErrorBanner({ message, onDismiss, darkMode }: ErrorBannerProps) {
+  const theme = getThemeClasses(darkMode);
+  
+  return (
+    <div className={`p-4 mb-6 rounded-lg border-2 border-red-500 ${darkMode ? 'bg-red-900/20' : 'bg-red-50'}`}>
+      <div className="flex items-start justify-between">
+        <div className="flex items-start gap-3">
+          <AlertCircle className="text-red-500 flex-shrink-0 mt-0.5" size={20} />
+          <p className={`${theme.text}`}>{message}</p>
+        </div>
+        <button
+          onClick={onDismiss}
+          className={`${theme.text} hover:opacity-70 font-bold`}
+          aria-label="Dismiss error"
+        >
+          ×
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// MAIN APP
+// ============================================================================
+
+export default function LyricSmith() {
+  const [state, dispatch] = useReducer(reducer, null, createInitialState);
+  const theme = getThemeClasses(state.darkMode);
+
+  const handleImportXML = (xmlString: string) => {
+    dispatch({ type: ACTION_TYPES.IMPORT_XML, payload: xmlString });
+  };
+
+  const handleImportPlainText = (text: string) => {
+    dispatch({ type: ACTION_TYPES.IMPORT_PLAIN_TEXT, payload: text });
+  };
+
+  const handleToggleDarkMode = () => {
+    dispatch({ type: ACTION_TYPES.TOGGLE_DARK_MODE });
+  };
+
+  const handleDismissError = () => {
+    dispatch({ type: ACTION_TYPES.CLEAR_ERROR });
+  };
+
+  return (
+    <div className={`min-h-screen ${theme.background} ${theme.text} p-6`}>
+      <div className="max-w-6xl mx-auto">
+        <header className="mb-8">
+          <h1 className="text-3xl font-bold mb-2">Rocksmith Lyric Synchronizer</h1>
+          <p className={theme.textMuted}>
+            Replace phonetic lyrics with correct characters from any alphabet
+          </p>
+        </header>
+
+        {state.error && (
+          <ErrorBanner 
+            message={state.error} 
+            onDismiss={handleDismissError}
+            darkMode={state.darkMode}
+          />
+        )}
+
+        <ImportSection
+          onImportXML={handleImportXML}
+          onImportPlainText={handleImportPlainText}
+          darkMode={state.darkMode}
+        />
+
+        <ControlBar
+          originalCount={state.originalSyllableCount}
+          currentCount={state.currentSyllableCount}
+          darkMode={state.darkMode}
+          onToggleDarkMode={handleToggleDarkMode}
+        />
+
+        <SyllableDisplay state={state} />
+      </div>
+    </div>
+  );
+}
