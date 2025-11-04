@@ -60,6 +60,8 @@ interface HistoryState {
   plainTextLines: string[][];
   xmlSyllables: string[];
   currentSyllableCount: number;
+  xmlData: ParsedXMLData | null;
+  lineGroups: number[][];
 }
 
 // ============================================================================
@@ -304,7 +306,12 @@ function createHistorySnapshot(state: AppState): HistoryState {
   return {
     plainTextLines: JSON.parse(JSON.stringify(state.plainTextLines)),
     xmlSyllables: [...state.xmlSyllables],
-    currentSyllableCount: state.currentSyllableCount
+    currentSyllableCount: state.currentSyllableCount,
+    xmlData: state.xmlData ? {
+      ...state.xmlData,
+      vocals: JSON.parse(JSON.stringify(state.xmlData.vocals))
+    } : null,
+    lineGroups: JSON.parse(JSON.stringify(state.lineGroups))
   };
 }
 
@@ -328,7 +335,13 @@ function restoreFromHistory(state: AppState, snapshot: HistoryState): AppState {
     ...state,
     plainTextLines: JSON.parse(JSON.stringify(snapshot.plainTextLines)),
     xmlSyllables: [...snapshot.xmlSyllables],
-    currentSyllableCount: snapshot.currentSyllableCount
+    currentSyllableCount: snapshot.currentSyllableCount,
+    xmlData: snapshot.xmlData ? {
+      ...snapshot.xmlData,
+      vocals: JSON.parse(JSON.stringify(snapshot.xmlData.vocals))
+    } : null,
+    lineGroups: JSON.parse(JSON.stringify(snapshot.lineGroups)),
+    originalSyllableCount: snapshot.xmlData?.count || state.originalSyllableCount
   };
 }
 
@@ -338,7 +351,7 @@ function handleXMLImport(state: AppState, xmlString: string): AppState {
     const lineGroups = groupVocalsIntoLines(xmlData.vocals);
     const xmlSyllables = xmlData.vocals.map(vocal => vocal.lyric);
     
-    return {
+    const newState = {
       ...state,
       xmlData,
       lineGroups,
@@ -347,6 +360,13 @@ function handleXMLImport(state: AppState, xmlString: string): AppState {
       currentSyllableCount: xmlData.count,
       error: null
     };
+    
+    // Save initial state to history if we have both XML and plain text
+    if (state.plainTextLines.length > 0) {
+      return addToHistory(newState);
+    }
+    
+    return newState;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return {
@@ -361,13 +381,20 @@ function handlePlainTextImport(state: AppState, plainText: string): AppState {
     const alphabet = detectAlphabet(plainText);
     const plainTextLines = parseTextIntoSyllables(plainText, alphabet);
     
-    return {
+    const newState = {
       ...state,
       plainTextRaw: plainText,
       plainTextLines,
       alphabet,
       error: null
     };
+    
+    // Save initial state to history if we have both XML and plain text
+    if (state.xmlData !== null) {
+      return addToHistory(newState);
+    }
+    
+    return newState;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return {
