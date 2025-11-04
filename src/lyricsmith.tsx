@@ -258,27 +258,232 @@ function mergeSyllablesInArray(syllables: string[], clickedIndex: number, isXMLR
   return newSyllables;
 }
 
-function updateXMLSyllablesForLine(
-  xmlSyllables: string[],
-  lineGroups: number[][],
-  lineIndex: number,
-  mergedLineSyllables: string[]
-): string[] {
-  const newXmlSyllables = [...xmlSyllables];
-  const vocalIndices = lineGroups[lineIndex];
-  
-  // Replace syllables for this line
-  mergedLineSyllables.forEach((syllable, i) => {
-    if (i < vocalIndices.length) {
-      newXmlSyllables[vocalIndices[i]] = syllable;
-    }
-  });
-  
-  return newXmlSyllables;
-}
-
 function calculateTotalSyllableCount(plainTextLines: string[][]): number {
   return plainTextLines.reduce((sum, line) => sum + line.length, 0);
+}
+
+// ============================================================================
+// UTILITY FUNCTIONS - Smart Syllable Matching
+// ============================================================================
+
+function normalizeForComparison(text: string): string {
+  return text.toLowerCase().replace(/[^a-z0-9\u0400-\u04FF\u4E00-\u9FFF\u3040-\u309F\u30A0-\u30FF\u0600-\u06FF]/g, '');
+}
+
+function isLatinText(text: string): boolean {
+  // Check if text is primarily Latin (at least 50% Latin characters)
+  const latinChars = text.match(/[a-zA-Z]/g)?.length || 0;
+  const totalChars = text.replace(/\s/g, '').length;
+  return totalChars > 0 && (latinChars / totalChars) >= 0.5;
+}
+
+function extractXMLSyllablePattern(vocals: VocalData[]): string[] {
+  // Extract syllables and clean them (remove + but keep -)
+  return vocals.map(vocal => {
+    let syllable = vocal.lyric.replace(/\+$/, ''); // Remove line end marker
+    return syllable;
+  });
+}
+
+function matchPlainTextToXMLPattern(plainText: string, xmlPattern: string[]): string[] | null {
+  // Remove all whitespace from plain text for matching
+  const plainTextNoSpaces = plainText.replace(/\s+/g, '');
+  
+  // Build expected text from XML pattern (without hyphens and spaces)
+  const xmlExpected = xmlPattern.map(s => s.replace(/-/g, '')).join('');
+  
+  // Normalize both for comparison
+  const normalizedPlain = normalizeForComparison(plainTextNoSpaces);
+  const normalizedXML = normalizeForComparison(xmlExpected);
+  
+  // If they don't match closely, return null which falls back to char-by-char
+  if (normalizedPlain !== normalizedXML) {
+    return null;
+  }
+  
+  // Now we know they match, so we can divide plain text according to XML pattern
+  const result: string[] = [];
+  let position = 0;
+  
+  for (let i = 0; i < xmlPattern.length; i++) {
+    const xmlSyllable = xmlPattern[i];
+    const hasHyphen = xmlSyllable.endsWith('-');
+    const cleanXMLSyllable = xmlSyllable.replace(/-/g, '');
+    const syllableLength = cleanXMLSyllable.length;
+    
+    if (position + syllableLength > plainTextNoSpaces.length) {
+      // Just in case, shouldn't happen if normalized texts matched
+      return null;
+    }
+    
+    let plainSyllable = plainTextNoSpaces.substring(position, position + syllableLength);
+    
+    // Restore hyphen if it was in the XML
+    if (hasHyphen) {
+      plainSyllable += '-';
+    }
+    
+    result.push(plainSyllable);
+    position += syllableLength;
+  }
+  
+  return result;
+}
+
+function segmentTextByAlphabet(text: string): Array<{text: string, isLatin: boolean}> {
+  const segments: Array<{text: string, isLatin: boolean}> = [];
+  let currentSegment = '';
+  let currentIsLatin: boolean | null = null;
+  
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    const charIsLatin = /[a-zA-Z\s]/.test(char);
+    
+    if (currentIsLatin === null) {
+      // First character
+      currentIsLatin = charIsLatin;
+      currentSegment = char;
+    } else if (currentIsLatin === charIsLatin) {
+      // Same type, add to current segment
+      currentSegment += char;
+    } else {
+      // Different type, save current segment and start new one
+      if (currentSegment.trim() && currentIsLatin !== null) {
+        segments.push({ text: currentSegment, isLatin: currentIsLatin });
+      }
+      currentSegment = char;
+      currentIsLatin = charIsLatin;
+    }
+  }
+  
+  // Last segment
+  if (currentSegment.trim()) {
+    segments.push({ text: currentSegment, isLatin: currentIsLatin });
+  }
+  
+  return segments;
+}
+
+function divideLineByXMLPattern(
+  plainTextLine: string,
+  xmlSyllablesForLine: string[]
+): string[] {
+  // Check if this is primarily Latin text
+  if (!isLatinText(plainTextLine)) {
+    // For non latin split into characters
+    return splitIntoCharacters(plainTextLine);
+  }
+  
+  // Try to match the entire line to XML pattern
+  const matched = matchPlainTextToXMLPattern(plainTextLine, xmlSyllablesForLine);
+  
+  if (matched) {
+    return matched;
+  }
+  
+  // If no match, try mixed alphabet approach
+  const segments = segmentTextByAlphabet(plainTextLine);
+  const result: string[] = [];
+  let xmlIndex = 0;
+  
+  for (const segment of segments) {
+    if (segment.isLatin && xmlIndex < xmlSyllablesForLine.length) {
+      // Calculate how many XML syllables this segment should consume
+      const segmentNoSpaces = segment.text.replace(/\s+/g, '');
+      let consumedLength = 0;
+      const segmentXMLPattern: string[] = [];
+      
+      // Collect XML syllables until we match the segment length
+      while (xmlIndex < xmlSyllablesForLine.length && consumedLength < segmentNoSpaces.length) {
+        const xmlSyll = xmlSyllablesForLine[xmlIndex];
+        segmentXMLPattern.push(xmlSyll);
+        consumedLength += xmlSyll.replace(/-/g, '').length;
+        xmlIndex++;
+      }
+      
+      // Try to match this segment
+      const segmentMatched = matchPlainTextToXMLPattern(segment.text, segmentXMLPattern);
+      
+      if (segmentMatched) {
+        result.push(...segmentMatched);
+      } else {
+        // Character by character for this segment
+        result.push(...splitIntoCharacters(segment.text));
+      }
+    } else {
+      // Non latin segment uses character by character
+      result.push(...splitIntoCharacters(segment.text));
+    }
+  }
+  
+  return result;
+}
+
+// ============================================================================
+// UTILITY FUNCTIONS - Plain Text Processing
+// ============================================================================
+
+function parseTextIntoSyllablesWithXMLReference(
+  plainText: string,
+  xmlData: ParsedXMLData | null,
+  lineGroups: number[][]
+): string[][] {
+  if (!xmlData || lineGroups.length === 0) {
+    // If no XML reference, use old method
+    const alphabet = detectAlphabet(plainText);
+    return parseTextIntoSyllables(plainText, alphabet);
+  }
+  
+  // Treat entire plain text as one continuous stream
+  let plainTextStream = plainText.replace(/\n+/g, ' ').trim();
+  
+  if (!plainTextStream) {
+    return [];
+  }
+  
+  const result: string[][] = [];
+  
+  // For each line in XML, extract the corresponding syllables
+  for (let lineIndex = 0; lineIndex < lineGroups.length; lineIndex++) {
+    const vocalIndices = lineGroups[lineIndex];
+    const xmlSyllablesForLine = vocalIndices.map(idx => xmlData.vocals[idx].lyric);
+    
+    // Calculate total character length needed (without hyphens and +)
+    const expectedLength = xmlSyllablesForLine
+      .map(s => s.replace(/[-+]/g, ''))
+      .join('')
+      .length;
+    
+    // Extract that many characters from plain text stream
+    let plainTextForLine = plainTextStream.substring(0, expectedLength).trim();
+    
+    // If we don't have enough text, take what's left
+    if (plainTextForLine.length === 0 && plainTextStream.length > 0) {
+      plainTextForLine = plainTextStream;
+    }
+    
+    // Divide this line according to XML pattern
+    const lineSyllables = divideLineByXMLPattern(plainTextForLine, xmlSyllablesForLine);
+    
+    result.push(lineSyllables);
+    
+    // Remove processed text from stream accounting for spaces
+    // Remove the normalized length
+    const normalizedProcessed = plainTextForLine.replace(/\s+/g, '');
+    let charsToRemove = 0;
+    let normalizedCount = 0;
+    
+    for (let i = 0; i < plainTextStream.length && normalizedCount < normalizedProcessed.length; i++) {
+      charsToRemove++;
+      if (plainTextStream[i].trim()) {
+        normalizedCount++;
+      }
+    }
+    
+    plainTextStream = plainTextStream.substring(charsToRemove).trim();
+  }
+  
+  return result;
 }
 
 // ============================================================================
@@ -379,7 +584,11 @@ function handleXMLImport(state: AppState, xmlString: string): AppState {
 function handlePlainTextImport(state: AppState, plainText: string): AppState {
   try {
     const alphabet = detectAlphabet(plainText);
-    const plainTextLines = parseTextIntoSyllables(plainText, alphabet);
+    
+    // Use XML reference if available
+    const plainTextLines = state.xmlData 
+      ? parseTextIntoSyllablesWithXMLReference(plainText, state.xmlData, state.lineGroups)
+      : parseTextIntoSyllables(plainText, alphabet);
     
     const newState = {
       ...state,
@@ -1101,9 +1310,9 @@ export default function LyricSmith() {
     <div className={`min-h-screen ${theme.background} ${theme.text} p-4 md:p-6`}>
       <div className="max-w-7xl mx-auto">
         <header className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">Rocksmith Lyric Synchronizer</h1>
+          <h1 className="text-3xl font-bold mb-2">RS2014 LyricSmith</h1>
           <p className={theme.textMuted}>
-            Replace phonetic lyrics with correct characters from any alphabet
+            Replace XML lyrics produced by EOF with characters from any alphabet
           </p>
         </header>
 
