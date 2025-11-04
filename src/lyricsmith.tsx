@@ -32,6 +32,8 @@ interface AppState {
   currentSyllableCount: number;
   darkMode: boolean;
   error: string | null;
+  history: HistoryState[];
+  historyIndex: number;
 }
 
 type ActionType =
@@ -39,7 +41,10 @@ type ActionType =
   | { type: 'import_plain_text'; payload: string }
   | { type: 'toggle_dark_mode' }
   | { type: 'set_error'; payload: string }
-  | { type: 'clear_error' };
+  | { type: 'clear_error' }
+  | { type: 'merge_syllables'; payload: { lineIndex: number; syllableIndex: number; rowType: 'xml' | 'plain' } }
+  | { type: 'undo' }
+  | { type: 'redo' };
 
 interface ThemeClasses {
   background: string;
@@ -49,6 +54,12 @@ interface ThemeClasses {
   border: string;
   inputBackground: string;
   buttonSecondary: string;
+}
+
+interface HistoryState {
+  plainTextLines: string[][];
+  xmlSyllables: string[];
+  currentSyllableCount: number;
 }
 
 // ============================================================================
@@ -220,6 +231,54 @@ function parseTextIntoSyllables(text: string, alphabetType: AlphabetType): strin
   return lines.map(line => splitTextBySyllables(line, alphabetType));
 }
 
+function mergeSyllablesInArray(syllables: string[], clickedIndex: number, isXMLRow: boolean): string[] {
+  // Cannot merge last syllable
+  if (clickedIndex >= syllables.length - 1) {
+    return syllables;
+  }
+  
+  const newSyllables = [...syllables];
+  const current = syllables[clickedIndex];
+  const next = syllables[clickedIndex + 1];
+  
+  // For XML row: remove hyphen from current if exists, merge with next
+  if (isXMLRow) {
+    const cleaned = current.replace(/-$/, '');
+    newSyllables[clickedIndex] = cleaned + next;
+  } else {
+    // Plain text: just concatenate
+    newSyllables[clickedIndex] = current + next;
+  }
+  
+  // Remove the next element
+  newSyllables.splice(clickedIndex + 1, 1);
+  
+  return newSyllables;
+}
+
+function updateXMLSyllablesForLine(
+  xmlSyllables: string[],
+  lineGroups: number[][],
+  lineIndex: number,
+  mergedLineSyllables: string[]
+): string[] {
+  const newXmlSyllables = [...xmlSyllables];
+  const vocalIndices = lineGroups[lineIndex];
+  
+  // Replace syllables for this line
+  mergedLineSyllables.forEach((syllable, i) => {
+    if (i < vocalIndices.length) {
+      newXmlSyllables[vocalIndices[i]] = syllable;
+    }
+  });
+  
+  return newXmlSyllables;
+}
+
+function calculateTotalSyllableCount(plainTextLines: string[][]): number {
+  return plainTextLines.reduce((sum, line) => sum + line.length, 0);
+}
+
 // ============================================================================
 // STATE MANAGEMENT
 // ============================================================================
@@ -235,7 +294,41 @@ function createInitialState(): AppState {
     originalSyllableCount: 0,
     currentSyllableCount: 0,
     darkMode: false,
-    error: null
+    error: null,
+    history: [],
+    historyIndex: -1
+  };
+}
+
+function createHistorySnapshot(state: AppState): HistoryState {
+  return {
+    plainTextLines: JSON.parse(JSON.stringify(state.plainTextLines)),
+    xmlSyllables: [...state.xmlSyllables],
+    currentSyllableCount: state.currentSyllableCount
+  };
+}
+
+function addToHistory(state: AppState): AppState {
+  const snapshot = createHistorySnapshot(state);
+  const newHistory = state.history.slice(0, state.historyIndex + 1);
+  newHistory.push(snapshot);
+  
+  // Limit history to 50
+  const limitedHistory = newHistory.slice(-50);
+  
+  return {
+    ...state,
+    history: limitedHistory,
+    historyIndex: limitedHistory.length - 1
+  };
+}
+
+function restoreFromHistory(state: AppState, snapshot: HistoryState): AppState {
+  return {
+    ...state,
+    plainTextLines: JSON.parse(JSON.stringify(snapshot.plainTextLines)),
+    xmlSyllables: [...snapshot.xmlSyllables],
+    currentSyllableCount: snapshot.currentSyllableCount
   };
 }
 
@@ -284,6 +377,129 @@ function handlePlainTextImport(state: AppState, plainText: string): AppState {
   }
 }
 
+function handleMergeSyllables(
+  state: AppState,
+  lineIndex: number,
+  syllableIndex: number,
+  rowType: 'xml' | 'plain'
+): AppState {
+  // Validation
+  if (!state.xmlData || lineIndex >= state.lineGroups.length) {
+    return state;
+  }
+
+  // Save current state to history before making changes
+  const stateWithHistory = addToHistory(state);
+
+  if (rowType === 'xml') {
+    const vocalIndices = state.lineGroups[lineIndex];
+    
+    // Can't merge if at the end of the line
+    if (syllableIndex >= vocalIndices.length - 1) {
+      return stateWithHistory;
+    }
+    
+    const actualVocalIndex = vocalIndices[syllableIndex];
+    
+    // Merge the vocals in xmlData
+    const newVocals = mergeVocalsInXMLData(state.xmlData.vocals, actualVocalIndex);
+    
+    // Update line groups to reflect the removal
+    const newLineGroups = updateLineGroupsAfterMerge(state.lineGroups, lineIndex, actualVocalIndex);
+    
+    // Update xmlSyllables
+    const newXmlSyllables = newVocals.map(vocal => vocal.lyric);
+    
+    return {
+      ...stateWithHistory,
+      xmlData: {
+        ...state.xmlData,
+        vocals: newVocals,
+        count: newVocals.length
+      },
+      lineGroups: newLineGroups,
+      xmlSyllables: newXmlSyllables,
+      currentSyllableCount: newVocals.length,
+      originalSyllableCount: state.originalSyllableCount
+    };
+  } else {
+    // Merge plain text syllables for this line
+    if (lineIndex >= state.plainTextLines.length) {
+      return stateWithHistory;
+    }
+    
+    const currentLineSyllables = state.plainTextLines[lineIndex];
+    const mergedLineSyllables = mergeSyllablesInArray(currentLineSyllables, syllableIndex, false);
+    
+    const newPlainTextLines = [...stateWithHistory.plainTextLines];
+    newPlainTextLines[lineIndex] = mergedLineSyllables;
+    
+    const newCount = calculateTotalSyllableCount(newPlainTextLines);
+    
+    return {
+      ...stateWithHistory,
+      plainTextLines: newPlainTextLines,
+      currentSyllableCount: newCount
+    };
+  }
+}
+
+function mergeVocalsInXMLData(
+  vocals: VocalData[],
+  firstIndex: number
+): VocalData[] {
+  if (firstIndex >= vocals.length - 1) return vocals;
+  
+  const newVocals = [...vocals];
+  const first = vocals[firstIndex];
+  const second = vocals[firstIndex + 1];
+  
+  // Merge lyrics (remove hyphen from the first one if it has one)
+  const mergedLyric = first.lyric.replace(/-$/, '') + second.lyric;
+  
+  // Calculate combined duration
+  const startTime = parseFloat(first.time);
+  const secondEndTime = parseFloat(second.time) + parseFloat(second.length);
+  const combinedLength = (secondEndTime - startTime).toFixed(3);
+  
+  // Update first vocal with merged data
+  newVocals[firstIndex] = {
+    ...first,
+    lyric: mergedLyric,
+    length: combinedLength
+  };
+  
+  // Remove second vocal
+  newVocals.splice(firstIndex + 1, 1);
+  
+  return newVocals;
+}
+
+function updateLineGroupsAfterMerge(
+  lineGroups: number[][],
+  lineIndex: number,
+  mergedVocalIndex: number
+): number[][] {
+  const newLineGroups = lineGroups.map(group => [...group]);
+  const targetGroup = newLineGroups[lineIndex];
+  
+  // Find position in the line group
+  const positionInLine = targetGroup.indexOf(mergedVocalIndex);
+  if (positionInLine === -1) return newLineGroups;
+  
+  // Remove the next index from this group
+  targetGroup.splice(positionInLine + 1, 1);
+  
+  // Decrement all indices after the merged one in all groups
+  for (let i = 0; i < newLineGroups.length; i++) {
+    newLineGroups[i] = newLineGroups[i].map(idx => 
+      idx > mergedVocalIndex ? idx - 1 : idx
+    );
+  }
+  
+  return newLineGroups;
+}
+
 function reducer(state: AppState, action: ActionType): AppState {
   switch (action.type) {
     case ACTION_TYPES.IMPORT_XML:
@@ -300,6 +516,34 @@ function reducer(state: AppState, action: ActionType): AppState {
       
     case ACTION_TYPES.CLEAR_ERROR:
       return { ...state, error: null };
+      
+    case 'merge_syllables':
+      return handleMergeSyllables(
+        state,
+        action.payload.lineIndex,
+        action.payload.syllableIndex,
+        action.payload.rowType
+      );
+      
+    case 'undo':
+      if (state.historyIndex > 0) {
+        const previousState = state.history[state.historyIndex - 1];
+        return {
+          ...restoreFromHistory(state, previousState),
+          historyIndex: state.historyIndex - 1
+        };
+      }
+      return state;
+      
+    case 'redo':
+      if (state.historyIndex < state.history.length - 1) {
+        const nextState = state.history[state.historyIndex + 1];
+        return {
+          ...restoreFromHistory(state, nextState),
+          historyIndex: state.historyIndex + 1
+        };
+      }
+      return state;
       
     default:
       return state;
@@ -512,19 +756,40 @@ interface ControlBarProps {
   currentCount: number;
   darkMode: boolean;
   onToggleDarkMode: () => void;
+  onUndo: () => void;
+  onRedo: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
 }
 
-function ControlBar({ originalCount, currentCount, darkMode, onToggleDarkMode }: ControlBarProps) {
+function ControlBar({ 
+  originalCount, 
+  currentCount, 
+  darkMode, 
+  onToggleDarkMode, 
+  onUndo, 
+  onRedo,
+  canUndo,
+  canRedo
+}: ControlBarProps) {
   const theme = getThemeClasses(darkMode);
   
   return (
     <div className={`p-4 ${theme.cardBackground} rounded-lg mb-6 flex items-center justify-between flex-wrap gap-4`}>
       <div className="flex gap-2">
-        <button className={`px-4 py-2 ${theme.buttonSecondary} rounded ${theme.text}`}>
+        <button 
+          onClick={onUndo}
+          disabled={!canUndo}
+          className={`px-4 py-2 ${theme.buttonSecondary} rounded ${theme.text} ${!canUndo ? 'opacity-50 cursor-not-allowed' : ''}`}
+        >
           <Undo size={18} className="inline mr-1" />
           Undo
         </button>
-        <button className={`px-4 py-2 ${theme.buttonSecondary} rounded ${theme.text}`}>
+        <button 
+          onClick={onRedo}
+          disabled={!canRedo}
+          className={`px-4 py-2 ${theme.buttonSecondary} rounded ${theme.text} ${!canRedo ? 'opacity-50 cursor-not-allowed' : ''}`}
+        >
           <Redo size={18} className="inline mr-1" />
           Redo
         </button>
@@ -561,9 +826,11 @@ interface SyllableButtonProps {
   children: React.ReactNode;
   variant: 'xml' | 'plain';
   theme: ThemeClasses;
+  onClick?: () => void;
+  disabled?: boolean;
 }
 
-function SyllableButton({ children, variant, theme }: SyllableButtonProps) {
+function SyllableButton({ children, variant, theme, onClick, disabled }: SyllableButtonProps) {
   const variantClasses = {
     xml: (isDark: boolean) => isDark ? 'bg-gray-700 hover:bg-gray-600' : 'bg-blue-100 hover:bg-blue-200',
     plain: (isDark: boolean) => isDark ? 'bg-gray-800 hover:bg-gray-700' : 'bg-green-100 hover:bg-green-200'
@@ -571,9 +838,14 @@ function SyllableButton({ children, variant, theme }: SyllableButtonProps) {
 
   const isDarkMode = theme.background.includes('gray-900');
   const bgClass = variantClasses[variant](isDarkMode);
+  const cursorClass = disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer';
 
   return (
-    <button className={`px-3 py-2 ${bgClass} ${theme.text} rounded border ${theme.border} font-mono text-sm whitespace-nowrap`}>
+    <button 
+      onClick={onClick}
+      disabled={disabled}
+      className={`px-3 py-2 ${bgClass} ${theme.text} rounded border ${theme.border} font-mono text-sm whitespace-nowrap ${cursorClass} transition-colors`}
+    >
       {children}
     </button>
   );
@@ -584,37 +856,48 @@ interface SyllableRowProps {
   variant: 'xml' | 'plain';
   theme: ThemeClasses;
   widths?: number[];
+  onSyllableClick?: (index: number) => void;
 }
 
-function SyllableRow({ syllables, variant, theme, widths }: SyllableRowProps) {
+function SyllableRow({ syllables, variant, theme, widths, onSyllableClick }: SyllableRowProps) {
   return (
     <div className="flex flex-wrap gap-1">
-      {syllables.map((syllable, index) => (
-        <div 
-          key={`${variant}-${index}`} 
-          className="inline-flex justify-center items-center"
-          style={widths ? { minWidth: `${widths[index]}px` } : undefined}
-        >
-          <SyllableButton variant={variant} theme={theme}>
-            {syllable}
-          </SyllableButton>
-        </div>
-      ))}
+      {syllables.map((syllable, index) => {
+        const isLastSyllable = index === syllables.length - 1;
+        
+        return (
+          <div 
+            key={`${variant}-${index}`} 
+            className="inline-flex justify-center items-center"
+            style={widths ? { minWidth: `${widths[index]}px` } : undefined}
+          >
+            <SyllableButton 
+              variant={variant} 
+              theme={theme}
+              onClick={onSyllableClick ? () => onSyllableClick(index) : undefined}
+              disabled={isLastSyllable}
+            >
+              {syllable}
+            </SyllableButton>
+          </div>
+        );
+      })}
     </div>
   );
 }
 
 interface LyricLineProps {
   lineNumber: number;
+  lineIndex: number;
   xmlSyllables: string[];
   plainTextSyllables: string[] | undefined;
   theme: ThemeClasses;
+  onMergeSyllables: (lineIndex: number, syllableIndex: number, rowType: 'xml' | 'plain') => void;
 }
 
-function LyricLine({ lineNumber, xmlSyllables, plainTextSyllables, theme }: LyricLineProps) {
+function LyricLine({ lineNumber, lineIndex, xmlSyllables, plainTextSyllables, theme, onMergeSyllables }: LyricLineProps) {
   // Calculate minimum widths for alignment
   const calculateWidth = (text: string) => {
-    // Approximate width: 8px per character + 24px padding
     return Math.max(50, text.length * 8 + 24);
   };
 
@@ -639,12 +922,24 @@ function LyricLine({ lineNumber, xmlSyllables, plainTextSyllables, theme }: Lyri
         Line {lineNumber}
       </div>
       
-      <SyllableRow syllables={xmlSyllables} variant="xml" theme={theme} widths={widths} />
+      <SyllableRow 
+        syllables={xmlSyllables} 
+        variant="xml" 
+        theme={theme} 
+        widths={widths}
+        onSyllableClick={(syllableIndex) => onMergeSyllables(lineIndex, syllableIndex, 'xml')}
+      />
       
       <div className="mb-2" />
       
       {plainTextSyllables ? (
-        <SyllableRow syllables={plainTextSyllables} variant="plain" theme={theme} widths={widths} />
+        <SyllableRow 
+          syllables={plainTextSyllables} 
+          variant="plain" 
+          theme={theme} 
+          widths={widths}
+          onSyllableClick={(syllableIndex) => onMergeSyllables(lineIndex, syllableIndex, 'plain')}
+        />
       ) : (
         <span className={`${theme.textMuted} italic text-sm`}>
           No matching plain text line
@@ -668,9 +963,10 @@ function EmptyState({ theme }: EmptyStateProps) {
 
 interface SyllableDisplayProps {
   state: AppState;
+  onMergeSyllables: (lineIndex: number, syllableIndex: number, rowType: 'xml' | 'plain') => void;
 }
 
-function SyllableDisplay({ state }: SyllableDisplayProps) {
+function SyllableDisplay({ state, onMergeSyllables }: SyllableDisplayProps) {
   const { xmlData, lineGroups, plainTextLines, darkMode } = state;
   const theme = getThemeClasses(darkMode);
   
@@ -681,16 +977,18 @@ function SyllableDisplay({ state }: SyllableDisplayProps) {
   return (
     <div className="space-y-6">
       {lineGroups.map((vocalIndices, lineIndex) => {
-        const xmlSyllables = vocalIndices.map(idx => xmlData.vocals[idx].lyric);
+        const xmlSyllables = vocalIndices.map(idx => state.xmlSyllables[idx]);
         const plainTextSyllables = plainTextLines[lineIndex];
         
         return (
           <LyricLine
             key={lineIndex}
             lineNumber={lineIndex + 1}
+            lineIndex={lineIndex}
             xmlSyllables={xmlSyllables}
             plainTextSyllables={plainTextSyllables}
             theme={theme}
+            onMergeSyllables={onMergeSyllables}
           />
         );
       })}
@@ -754,6 +1052,24 @@ export default function LyricSmith() {
     dispatch({ type: ACTION_TYPES.CLEAR_ERROR });
   };
 
+  const handleMergeSyllables = (lineIndex: number, syllableIndex: number, rowType: 'xml' | 'plain') => {
+    dispatch({ 
+      type: 'merge_syllables', 
+      payload: { lineIndex, syllableIndex, rowType } 
+    });
+  };
+
+  const handleUndo = () => {
+    dispatch({ type: 'undo' });
+  };
+
+  const handleRedo = () => {
+    dispatch({ type: 'redo' });
+  };
+
+  const canUndo = state.historyIndex > 0;
+  const canRedo = state.historyIndex < state.history.length - 1;
+
   return (
     <div className={`min-h-screen ${theme.background} ${theme.text} p-4 md:p-6`}>
       <div className="max-w-7xl mx-auto">
@@ -783,9 +1099,16 @@ export default function LyricSmith() {
           currentCount={state.currentSyllableCount}
           darkMode={state.darkMode}
           onToggleDarkMode={handleToggleDarkMode}
+          onUndo={handleUndo}
+          onRedo={handleRedo}
+          canUndo={canUndo}
+          canRedo={canRedo}
         />
 
-        <SyllableDisplay state={state} />
+        <SyllableDisplay 
+          state={state} 
+          onMergeSyllables={handleMergeSyllables}
+        />
       </div>
     </div>
   );
