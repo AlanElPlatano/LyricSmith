@@ -573,7 +573,7 @@ function SyllableButton({ children, variant, theme }: SyllableButtonProps) {
   const bgClass = variantClasses[variant](isDarkMode);
 
   return (
-    <button className={`px-3 py-2 ${bgClass} ${theme.text} rounded border ${theme.border} font-mono text-sm min-w-[50px]`}>
+    <button className={`px-3 py-2 ${bgClass} ${theme.text} rounded border ${theme.border} font-mono text-sm whitespace-nowrap`}>
       {children}
     </button>
   );
@@ -583,15 +583,22 @@ interface SyllableRowProps {
   syllables: string[];
   variant: 'xml' | 'plain';
   theme: ThemeClasses;
+  widths?: number[];
 }
 
-function SyllableRow({ syllables, variant, theme }: SyllableRowProps) {
+function SyllableRow({ syllables, variant, theme, widths }: SyllableRowProps) {
   return (
     <div className="flex flex-wrap gap-1">
       {syllables.map((syllable, index) => (
-        <SyllableButton key={`${variant}-${index}`} variant={variant} theme={theme}>
-          {syllable}
-        </SyllableButton>
+        <div 
+          key={`${variant}-${index}`} 
+          className="inline-flex justify-center items-center"
+          style={widths ? { minWidth: `${widths[index]}px` } : undefined}
+        >
+          <SyllableButton variant={variant} theme={theme}>
+            {syllable}
+          </SyllableButton>
+        </div>
       ))}
     </div>
   );
@@ -605,18 +612,39 @@ interface LyricLineProps {
 }
 
 function LyricLine({ lineNumber, xmlSyllables, plainTextSyllables, theme }: LyricLineProps) {
+  // Calculate minimum widths for alignment
+  const calculateWidth = (text: string) => {
+    // Approximate width: 8px per character + 24px padding
+    return Math.max(50, text.length * 8 + 24);
+  };
+
+  const widths = React.useMemo(() => {
+    if (!plainTextSyllables) return undefined;
+    
+    const maxLength = Math.max(xmlSyllables.length, plainTextSyllables.length);
+    const calculatedWidths: number[] = [];
+    
+    for (let i = 0; i < maxLength; i++) {
+      const xmlWidth = i < xmlSyllables.length ? calculateWidth(xmlSyllables[i]) : 50;
+      const plainWidth = i < plainTextSyllables.length ? calculateWidth(plainTextSyllables[i]) : 50;
+      calculatedWidths.push(Math.max(xmlWidth, plainWidth));
+    }
+    
+    return calculatedWidths;
+  }, [xmlSyllables, plainTextSyllables]);
+
   return (
     <div className={`p-4 border ${theme.border} rounded-lg`}>
       <div className={`text-xs ${theme.textMuted} mb-2`}>
         Line {lineNumber}
       </div>
       
-      <SyllableRow syllables={xmlSyllables} variant="xml" theme={theme} />
+      <SyllableRow syllables={xmlSyllables} variant="xml" theme={theme} widths={widths} />
       
       <div className="mb-2" />
       
       {plainTextSyllables ? (
-        <SyllableRow syllables={plainTextSyllables} variant="plain" theme={theme} />
+        <SyllableRow syllables={plainTextSyllables} variant="plain" theme={theme} widths={widths} />
       ) : (
         <span className={`${theme.textMuted} italic text-sm`}>
           No matching plain text line
@@ -727,8 +755,8 @@ export default function LyricSmith() {
   };
 
   return (
-    <div className={`min-h-screen ${theme.background} ${theme.text} p-6`}>
-      <div className="max-w-6xl mx-auto">
+    <div className={`min-h-screen ${theme.background} ${theme.text} p-4 md:p-6`}>
+      <div className="max-w-7xl mx-auto">
         <header className="mb-8">
           <h1 className="text-3xl font-bold mb-2">Rocksmith Lyric Synchronizer</h1>
           <p className={theme.textMuted}>
