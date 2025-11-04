@@ -277,20 +277,13 @@ function isLatinText(text: string): boolean {
   return totalChars > 0 && (latinChars / totalChars) >= 0.5;
 }
 
-function extractXMLSyllablePattern(vocals: VocalData[]): string[] {
-  // Extract syllables and clean them (remove + but keep -)
-  return vocals.map(vocal => {
-    let syllable = vocal.lyric.replace(/\+$/, ''); // Remove line end marker
-    return syllable;
-  });
-}
-
 function matchPlainTextToXMLPattern(plainText: string, xmlPattern: string[]): string[] | null {
   // Remove all whitespace from plain text for matching
   const plainTextNoSpaces = plainText.replace(/\s+/g, '');
   
-  // Build expected text from XML pattern (without hyphens and spaces)
-  const xmlExpected = xmlPattern.map(s => s.replace(/-/g, '')).join('');
+  // Build expected text from XML pattern (without hyphens, + and spaces)
+  // Remove the hyphens when building the expected text for comparison
+  const xmlExpected = xmlPattern.map(s => s.replace(/[-+]/g, '')).join('');
   
   // Normalize both for comparison
   const normalizedPlain = normalizeForComparison(plainTextNoSpaces);
@@ -298,27 +291,29 @@ function matchPlainTextToXMLPattern(plainText: string, xmlPattern: string[]): st
   
   // If they don't match closely, return null which falls back to char-by-char
   if (normalizedPlain !== normalizedXML) {
+    console.log('Match failed:', { normalizedPlain, normalizedXML });
     return null;
   }
   
-  // Now we know they match, so we can divide plain text according to XML pattern
+  // By this point we know they match, so we can divide plain text according to XML pattern
   const result: string[] = [];
   let position = 0;
   
   for (let i = 0; i < xmlPattern.length; i++) {
     const xmlSyllable = xmlPattern[i];
     const hasHyphen = xmlSyllable.endsWith('-');
-    const cleanXMLSyllable = xmlSyllable.replace(/-/g, '');
+    const cleanXMLSyllable = xmlSyllable.replace(/[-+]/g, ''); // Remove both - and +
     const syllableLength = cleanXMLSyllable.length;
     
     if (position + syllableLength > plainTextNoSpaces.length) {
       // Just in case, shouldn't happen if normalized texts matched
+      console.log('Length mismatch at position', position);
       return null;
     }
     
     let plainSyllable = plainTextNoSpaces.substring(position, position + syllableLength);
     
-    // Restore hyphen if it was in the XML
+    // Add hyphen to plain text syllable if XML had one (for visual consistency)
     if (hasHyphen) {
       plainSyllable += '-';
     }
@@ -332,14 +327,19 @@ function matchPlainTextToXMLPattern(plainText: string, xmlPattern: string[]): st
 
 function segmentTextByAlphabet(text: string): Array<{text: string, isLatin: boolean}> {
   const segments: Array<{text: string, isLatin: boolean}> = [];
-  let currentSegment = '';
-  let currentIsLatin: boolean | null = null;
   
+  // Start with empty string
+  if (text.length === 0) return segments;
+  
+  let currentIsLatin = /[a-zA-Z\s]/.test(text[0]);
+  let currentSegment = '';
+
+  // Start loop at 0, not after initializing with text[0]
   for (let i = 0; i < text.length; i++) {
     const char = text[i];
     const charIsLatin = /[a-zA-Z\s]/.test(char);
     
-    if (currentIsLatin === null) {
+    if (i === 0) {
       // First character
       currentIsLatin = charIsLatin;
       currentSegment = char;
@@ -348,7 +348,7 @@ function segmentTextByAlphabet(text: string): Array<{text: string, isLatin: bool
       currentSegment += char;
     } else {
       // Different type, save current segment and start new one
-      if (currentSegment.trim() && currentIsLatin !== null) {
+      if (currentSegment.trim()) {
         segments.push({ text: currentSegment, isLatin: currentIsLatin });
       }
       currentSegment = char;
@@ -448,39 +448,43 @@ function parseTextIntoSyllablesWithXMLReference(
     const vocalIndices = lineGroups[lineIndex];
     const xmlSyllablesForLine = vocalIndices.map(idx => xmlData.vocals[idx].lyric);
     
-    // Calculate total character length needed (without hyphens and +)
+    // Calculate total character length needed (without hyphens, +, and spaces)
     const expectedLength = xmlSyllablesForLine
       .map(s => s.replace(/[-+]/g, ''))
       .join('')
       .length;
     
-    // Extract that many characters from plain text stream
-    let plainTextForLine = plainTextStream.substring(0, expectedLength).trim();
+    // Extract characters more carefully, skipping spaces
+    let charsExtracted = 0;
+    let textForLine = '';
+    let charsConsumed = 0;
     
-    // If we don't have enough text, take what's left
-    if (plainTextForLine.length === 0 && plainTextStream.length > 0) {
-      plainTextForLine = plainTextStream;
-    }
-    
-    // Divide this line according to XML pattern
-    const lineSyllables = divideLineByXMLPattern(plainTextForLine, xmlSyllablesForLine);
-    
-    result.push(lineSyllables);
-    
-    // Remove processed text from stream accounting for spaces
-    // Remove the normalized length
-    const normalizedProcessed = plainTextForLine.replace(/\s+/g, '');
-    let charsToRemove = 0;
-    let normalizedCount = 0;
-    
-    for (let i = 0; i < plainTextStream.length && normalizedCount < normalizedProcessed.length; i++) {
-      charsToRemove++;
-      if (plainTextStream[i].trim()) {
-        normalizedCount++;
+    for (let i = 0; i < plainTextStream.length && charsExtracted < expectedLength; i++) {
+      const char = plainTextStream[i];
+      textForLine += char;
+      charsConsumed++;
+      
+      // Only count non-space characters toward our expected length
+      if (char.trim()) {
+        charsExtracted++;
       }
     }
     
-    plainTextStream = plainTextStream.substring(charsToRemove).trim();
+    textForLine = textForLine.trim();
+    
+    // If we don't have enough text, take what's left
+    if (textForLine.length === 0 && plainTextStream.length > 0) {
+      textForLine = plainTextStream.trim();
+      charsConsumed = plainTextStream.length;
+    }
+    
+    // Divide this line according to XML pattern
+    const lineSyllables = divideLineByXMLPattern(textForLine, xmlSyllablesForLine);
+    
+    result.push(lineSyllables);
+    
+    // Remove the consumed characters and trim
+    plainTextStream = plainTextStream.substring(charsConsumed).trim();
   }
   
   return result;
