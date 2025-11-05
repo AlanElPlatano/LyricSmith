@@ -85,25 +85,39 @@ export function handleMergeSyllables(
 
   if (rowType === 'xml') {
     const vocalIndices = state.lineGroups[lineIndex];
-    
+
     if (syllableIndex >= vocalIndices.length - 1) {
       return stateWithHistory;
     }
-    
+
     const actualVocalIndex = vocalIndices[syllableIndex];
     const newVocals = mergeVocalsInXMLData(state.xmlData.vocals, actualVocalIndex);
     const newLineGroups = updateLineGroupsAfterMerge(state.lineGroups, lineIndex, actualVocalIndex);
     const newXmlSyllables = newVocals.map(vocal => vocal.lyric);
-    
+
+    const newXmlData = {
+      ...state.xmlData,
+      vocals: newVocals,
+      count: newVocals.length
+    };
+
+    let newPlainTextLines = stateWithHistory.plainTextLines;
+
+    if (state.plainTextRaw) {
+      newPlainTextLines = parseTextIntoSyllablesWithXMLReference(
+        state.plainTextRaw,
+        newXmlData,
+        newLineGroups,
+        (text) => parseTextIntoSyllables(text, state.alphabet)
+      );
+    }
+
     return {
       ...stateWithHistory,
-      xmlData: {
-        ...state.xmlData,
-        vocals: newVocals,
-        count: newVocals.length
-      },
+      xmlData: newXmlData,
       lineGroups: newLineGroups,
       xmlSyllables: newXmlSyllables,
+      plainTextLines: newPlainTextLines,
       currentSyllableCount: newVocals.length,
       originalSyllableCount: state.originalSyllableCount
     };
@@ -111,15 +125,15 @@ export function handleMergeSyllables(
     if (lineIndex >= state.plainTextLines.length) {
       return stateWithHistory;
     }
-    
+
     const currentLineSyllables = state.plainTextLines[lineIndex];
     const mergedLineSyllables = mergeSyllablesInArray(currentLineSyllables, syllableIndex, false);
-    
+
     const newPlainTextLines = [...stateWithHistory.plainTextLines];
     newPlainTextLines[lineIndex] = mergedLineSyllables;
-    
+
     const newCount = calculateTotalSyllableCount(newPlainTextLines);
-    
+
     return {
       ...stateWithHistory,
       plainTextLines: newPlainTextLines,

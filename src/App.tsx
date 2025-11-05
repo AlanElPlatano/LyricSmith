@@ -1,4 +1,3 @@
-import './App.css'
 import LyricSmith from './lyricsmith';
 
 function App() {
