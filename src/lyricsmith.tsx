@@ -7,6 +7,7 @@ import { ErrorBanner } from './components/ErrorBanner/ErrorBanner';
 import { ImportSection } from './components/ImportSection/ImportSection';
 import { ControlBar } from './components/ControlBar/ControlBar';
 import { SyllableDisplay } from './components/SyllableDisplay/SyllableDisplay';
+import { generateXMLFromState, downloadXML } from './utils/export.utils';
 
 export default function LyricSmith() {
   const [state, dispatch] = useReducer(reducer, null, createInitialState);
@@ -43,8 +44,34 @@ export default function LyricSmith() {
     dispatch({ type: 'redo' });
   };
 
+  const handleExportXML = () => {
+    if (!state.xmlData || state.plainTextLines.length === 0) {
+      dispatch({ 
+        type: ACTION_TYPES.SET_ERROR, 
+        payload: 'Cannot export: Both XML and plain text must be imported first' 
+      });
+      return;
+    }
+
+    try {
+      const xmlContent = generateXMLFromState(
+        state.xmlData,
+        state.lineGroups,
+        state.plainTextLines
+      );
+      downloadXML(xmlContent);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      dispatch({ 
+        type: ACTION_TYPES.SET_ERROR, 
+        payload: `Export Error: ${errorMessage}` 
+      });
+    }
+  };
+
   const canUndo = state.historyIndex > 0;
   const canRedo = state.historyIndex < state.history.length - 1;
+  const canExport = state.xmlData !== null && state.plainTextLines.length > 0;
 
   return (
     <div className={`min-h-screen ${theme.background} ${theme.text} p-4 md:p-6`}>
@@ -72,8 +99,10 @@ export default function LyricSmith() {
           onToggleDarkMode={handleToggleDarkMode}
           onUndo={handleUndo}
           onRedo={handleRedo}
+          onExportXML={handleExportXML}
           canUndo={canUndo}
           canRedo={canRedo}
+          canExport={canExport}
         />
 
         <SyllableDisplay 

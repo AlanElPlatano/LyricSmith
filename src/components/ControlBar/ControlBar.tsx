@@ -9,8 +9,10 @@ interface ControlBarProps {
   onToggleDarkMode: () => void;
   onUndo: () => void;
   onRedo: () => void;
+  onExportXML: () => void;
   canUndo: boolean;
   canRedo: boolean;
+  canExport: boolean;
 }
 
 export function ControlBar({ 
@@ -20,8 +22,10 @@ export function ControlBar({
   onToggleDarkMode, 
   onUndo, 
   onRedo,
+  onExportXML,
   canUndo,
-  canRedo
+  canRedo,
+  canExport
 }: ControlBarProps) {
   const theme = useTheme(darkMode);
   
@@ -60,7 +64,11 @@ export function ControlBar({
         >
           {darkMode ? <Sun size={18} /> : <Moon size={18} />}
         </button>
-        <button className="px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded">
+        <button 
+          onClick={onExportXML}
+          disabled={!canExport}
+          className={`px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded ${!canExport ? 'opacity-50 cursor-not-allowed' : ''}`}
+        >
           <Download size={18} className="inline mr-1" />
           Export XML
         </button>
