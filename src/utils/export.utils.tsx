@@ -19,11 +19,26 @@ export function generateXMLFromState(
       const originalVocal = xmlData.vocals[vocalIndex];
       const newLyric = plainTextSyllables[syllableIndex] || originalVocal.lyric;
       
+      // Check if the original XML syllable had a hyphen (meaning it continues in the same word)
+      const hadHyphen = originalVocal.lyric.endsWith('-');
+      
       // Determine if this is the last syllable in the line
       const isLastInLine = syllableIndex === vocalIndices.length - 1;
       
-      // Add line-end marker if it's the last syllable
-      const finalLyric = isLastInLine ? newLyric + '+' : newLyric;
+      // Final lyric logic:
+      // 1. Start with the new text from plain text row
+      // 2. Add hyphen if original had it (and it's not the last in line)
+      // 3. Add '+' if it's the last syllable in the line
+      // Hope i didn't mess up somewhere along the way
+      let finalLyric = newLyric;
+      
+      if (hadHyphen && !isLastInLine) {
+        finalLyric += '-';
+      }
+      
+      if (isLastInLine) {
+        finalLyric += '+';
+      }
       
       // Create the vocal element with preserved timing
       xmlOutput += `  <vocal time="${originalVocal.time}" note="${originalVocal.note}" length="${originalVocal.length}" lyric="${finalLyric}"/>\n`;
