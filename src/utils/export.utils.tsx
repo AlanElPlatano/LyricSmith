@@ -1,5 +1,17 @@
 import type { ParsedXMLData } from '../types';
 
+/**
+ * Escapes special XML characters to prevent breaking XML syntax
+ */
+function escapeXMLAttribute(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')   // Must be first to avoid double-escaping
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
 export function generateXMLFromState(
   xmlData: ParsedXMLData,
   lineGroups: number[][],
@@ -26,11 +38,11 @@ export function generateXMLFromState(
       const isLastInLine = syllableIndex === vocalIndices.length - 1;
       
       // Final lyric logic:
-      // 1. Start with the new text from plain text row
+      // 1. Start with the new text from plain text row (escaped for XML)
       // 2. Add hyphen if original had it (and it's not the last in line)
       // 3. Add '+' if it's the last syllable in the line
       // Hope i didn't mess up somewhere along the way
-      let finalLyric = newLyric;
+      let finalLyric = escapeXMLAttribute(newLyric);
       
       if (hadHyphen && !isLastInLine) {
         finalLyric += '-';
