@@ -19,12 +19,14 @@ export function LyricLine({ lineNumber, lineIndex, xmlSyllables, plainTextSyllab
   const widths = React.useMemo(() => {
     if (!plainTextSyllables) return undefined;
     
+    // Calculate widths for the MAXIMUM number of syllables between both rows
     const maxLength = Math.max(xmlSyllables.length, plainTextSyllables.length);
     const calculatedWidths: number[] = [];
     
     for (let i = 0; i < maxLength; i++) {
       const xmlWidth = i < xmlSyllables.length ? calculateWidth(xmlSyllables[i]) : 50;
       const plainWidth = i < plainTextSyllables.length ? calculateWidth(plainTextSyllables[i]) : 50;
+      // Use the maximum width needed for this column position
       calculatedWidths.push(Math.max(xmlWidth, plainWidth));
     }
     
@@ -54,7 +56,7 @@ export function LyricLine({ lineNumber, lineIndex, xmlSyllables, plainTextSyllab
           theme={theme} 
           widths={widths}
           onSyllableClick={(syllableIndex) => onMergeSyllables(lineIndex, syllableIndex, 'plain')}
-        />
+      />
       ) : (
         <span className={`${theme.textMuted} italic text-sm`}>
           No matching plain text line

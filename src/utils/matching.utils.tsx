@@ -11,44 +11,21 @@ export function parseTextIntoSyllablesWithXMLReference(
     return fallbackParser(plainText);
   }
 
-  let plainTextStream = plainText.replace(/\n+/g, ' ').trim();
-
-  if (!plainTextStream) {
-    return [];
-  }
+  // Split the plain text by lines (preserve line breaks from user input)
+  const plainTextLines = plainText.split('\n').filter(line => line.trim().length > 0);
 
   const result: string[][] = [];
 
+  // Match each plain text line to each XML line
   for (let lineIndex = 0; lineIndex < lineGroups.length; lineIndex++) {
-    const vocalIndices = lineGroups[lineIndex];
-    const xmlSyllableCount = vocalIndices.length;
-
-    let charsExtracted = 0;
-    let textForLine = '';
-    let charsConsumed = 0;
-
-    for (let i = 0; i < plainTextStream.length && charsExtracted < xmlSyllableCount; i++) {
-      const char = plainTextStream[i];
-      textForLine += char;
-      charsConsumed++;
-
-      if (char.trim()) {
-        charsExtracted++;
-      }
+    if (lineIndex < plainTextLines.length) {
+      // Split the entire line into individual characters - don't limit by XML syllable count
+      const lineSyllables = splitIntoCharacters(plainTextLines[lineIndex]);
+      result.push(lineSyllables);
+    } else {
+      // If we run out of plain text lines, add empty array
+      result.push([]);
     }
-
-    textForLine = textForLine.trim();
-
-    if (textForLine.length === 0 && plainTextStream.length > 0) {
-      textForLine = plainTextStream.trim();
-      charsConsumed = plainTextStream.length;
-    }
-
-    const lineSyllables = splitIntoCharacters(textForLine);
-
-    result.push(lineSyllables);
-
-    plainTextStream = plainTextStream.substring(charsConsumed).trim();
   }
 
   return result;
