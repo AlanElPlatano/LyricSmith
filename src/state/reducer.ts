@@ -13,7 +13,7 @@ export function createInitialState(): AppState {
     alphabet: ALPHABET_TYPES.LATIN,
     originalSyllableCount: 0,
     currentSyllableCount: 0,
-    darkMode: false,
+    darkMode: true,
     error: null,
     history: [],
     historyIndex: -1
