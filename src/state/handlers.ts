@@ -112,23 +112,11 @@ export function handleMergeSyllables(
       count: newVocals.length
     };
 
-    let newPlainTextLines = state.plainTextLines;
-
-    if (state.plainTextRaw) {
-      newPlainTextLines = parseTextIntoSyllablesWithXMLReference(
-        state.plainTextRaw,
-        newXmlData,
-        newLineGroups,
-        (text) => parseTextIntoSyllables(text, state.alphabet)
-      );
-    }
-
     const mergedState = {
       ...state,
       xmlData: newXmlData,
       lineGroups: newLineGroups,
       xmlSyllables: newXmlSyllables,
-      plainTextLines: newPlainTextLines,
       currentSyllableCount: newVocals.length,
       originalSyllableCount: state.originalSyllableCount,
       recordedActions: newRecordedActions
