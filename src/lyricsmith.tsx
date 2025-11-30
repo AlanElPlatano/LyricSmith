@@ -71,11 +71,11 @@ export default function LyricSmith() {
     dispatch({ type: 'redo' });
   };
 
-  const handleExportXML = () => {
+  const handleExportXML = async () => {
     if (!state.xmlData || state.plainTextLines.length === 0) {
-      dispatch({ 
-        type: ACTION_TYPES.SET_ERROR, 
-        payload: 'Cannot export: Both XML and plain text must be imported first' 
+      dispatch({
+        type: ACTION_TYPES.SET_ERROR,
+        payload: 'Cannot export: Both XML and plain text must be imported first'
       });
       return;
     }
@@ -86,12 +86,12 @@ export default function LyricSmith() {
         state.lineGroups,
         state.plainTextLines
       );
-      downloadXML(xmlContent);
+      await downloadXML(xmlContent);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      dispatch({ 
-        type: ACTION_TYPES.SET_ERROR, 
-        payload: `Export Error: ${errorMessage}` 
+      dispatch({
+        type: ACTION_TYPES.SET_ERROR,
+        payload: `Export Error: ${errorMessage}`
       });
     }
   };
@@ -100,7 +100,7 @@ export default function LyricSmith() {
     dispatch({ type: ACTION_TYPES.SET_RECORDING_TEST_NAME, payload: name });
   };
 
-  const handleExportRecording = () => {
+  const handleExportRecording = async () => {
     const validation = validateRecording(state);
     if (!validation.valid) {
       dispatch({
@@ -112,7 +112,7 @@ export default function LyricSmith() {
 
     try {
       const testCase = generateTestCaseJSON(state, state.recordingTestName);
-      downloadTestCase(testCase);
+      await downloadTestCase(testCase);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       dispatch({

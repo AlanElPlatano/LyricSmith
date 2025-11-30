@@ -1,4 +1,5 @@
 import type { ParsedXMLData } from '../types';
+import { saveFileToFolder } from './file-system.utils';
 
 /**
  * Escapes special XML characters to prevent breaking XML syntax
@@ -63,14 +64,6 @@ export function generateXMLFromState(
   return xmlOutput;
 }
 
-export function downloadXML(content: string, filename: string = 'exported_lyrics.xml'): void {
-  const blob = new Blob([content], { type: 'application/xml' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+export async function downloadXML(content: string, filename: string = 'exported_lyrics.xml'): Promise<void> {
+  await saveFileToFolder(content, filename, 'application/xml');
 }

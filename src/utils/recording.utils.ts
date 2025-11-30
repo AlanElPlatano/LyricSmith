@@ -1,4 +1,5 @@
 import type { AppState, MergeAction } from '../types/state.types';
+import { saveFileToFolder } from './file-system.utils';
 
 export interface TestCase {
   testCaseName: string;
@@ -50,34 +51,13 @@ export function generateTestCaseJSON(state: AppState, testName: string): TestCas
   };
 }
 
-export function downloadTestCase(testCase: TestCase, filename?: string): void {
+export async function downloadTestCase(testCase: TestCase, filename?: string): Promise<void> {
   const jsonString = JSON.stringify(testCase, null, 2);
-  const blob = new Blob([jsonString], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename || `${testCase.testCaseName}_merge_sequence.json`;
-
-  document.body.appendChild(link);
-  link.click();
-
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  const finalFilename = filename || `${testCase.testCaseName}_merge_sequence.json`;
+  await saveFileToFolder(jsonString, finalFilename, 'application/json');
 }
 
-export function downloadJSON(data: unknown, filename: string): void {
+export async function downloadJSON(data: unknown, filename: string): Promise<void> {
   const jsonString = JSON.stringify(data, null, 2);
-  const blob = new Blob([jsonString], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-
-  document.body.appendChild(link);
-  link.click();
-
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  await saveFileToFolder(jsonString, filename, 'application/json');
 }
