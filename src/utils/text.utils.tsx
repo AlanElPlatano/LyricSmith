@@ -42,16 +42,19 @@ export function normalizeForComparison(text: string): string {
 
 export function segmentTextByAlphabet(text: string): Array<{text: string, isLatin: boolean}> {
   const segments: Array<{text: string, isLatin: boolean}> = [];
-  
+
   if (text.length === 0) return segments;
-  
-  let currentIsLatin = /[a-zA-Z\s]/.test(text[0]);
+
+  // Helper to check if character is Latin or punctuation/whitespace
+  const isLatinOrPunctuation = (char: string) => /[a-zA-Z\s.,!?;:'"()\[\]{}\-\u2019\u201D\u2026]/.test(char);
+
+  let currentIsLatin = isLatinOrPunctuation(text[0]);
   let currentSegment = '';
 
   for (let i = 0; i < text.length; i++) {
     const char = text[i];
-    const charIsLatin = /[a-zA-Z\s]/.test(char);
-    
+    const charIsLatin = isLatinOrPunctuation(char);
+
     if (i === 0) {
       currentIsLatin = charIsLatin;
       currentSegment = char;
@@ -65,10 +68,10 @@ export function segmentTextByAlphabet(text: string): Array<{text: string, isLati
       currentIsLatin = charIsLatin;
     }
   }
-  
+
   if (currentSegment.trim()) {
     segments.push({ text: currentSegment, isLatin: currentIsLatin });
   }
-  
+
   return segments;
 }

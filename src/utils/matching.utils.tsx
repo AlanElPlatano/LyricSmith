@@ -1,5 +1,6 @@
 import type { ParsedXMLData } from '../types';
 import { splitIntoCharacters } from './text.utils';
+import { autoMatchSyllables, isPrimarylyLatin } from './auto-match.utils';
 
 export function parseTextIntoSyllablesWithXMLReference(
   plainText: string,
@@ -19,8 +20,17 @@ export function parseTextIntoSyllablesWithXMLReference(
   // Match each plain text line to each XML line
   for (let lineIndex = 0; lineIndex < lineGroups.length; lineIndex++) {
     if (lineIndex < plainTextLines.length) {
-      // Split the entire line into individual characters - don't limit by XML syllable count
-      const lineSyllables = splitIntoCharacters(plainTextLines[lineIndex]);
+      const plainTextLine = plainTextLines[lineIndex];
+      const vocalIndices = lineGroups[lineIndex];
+
+      // Get XML syllables for this line
+      const xmlSyllables = vocalIndices.map(index => xmlData.vocals[index].lyric);
+
+      // Try auto-matching for Latin text, otherwise fall back to character splitting
+      const lineSyllables = isPrimarylyLatin(plainTextLine)
+        ? autoMatchSyllables(plainTextLine, xmlSyllables)
+        : splitIntoCharacters(plainTextLine);
+
       result.push(lineSyllables);
     } else {
       // If we run out of plain text lines, add empty array
