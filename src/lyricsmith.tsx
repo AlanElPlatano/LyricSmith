@@ -1,4 +1,4 @@
-import { useReducer, useEffect, useState } from 'react';
+import { useReducer, useEffect, useState, useRef } from 'react';
 import { useTheme } from './hooks/useTheme';
 import { reducer, createInitialState } from './state/reducer';
 import { ACTION_TYPES } from './constants';
@@ -9,15 +9,19 @@ import { ControlBar } from './components/ControlBar/ControlBar';
 import { SyllableDisplay } from './components/SyllableDisplay/SyllableDisplay';
 import { RecordingIndicator } from './components/TestRecorder/RecordingIndicator';
 import { RecordingControls } from './components/TestRecorder/RecordingControls';
+import { FloatingUndoRedo } from './components/FloatingControls/FloatingUndoRedo';
 import { generateXMLFromState, downloadXML } from './utils/export.utils';
 import { validateRecording, generateTestCaseJSON, downloadTestCase } from './utils/recording.utils';
 import { initializeWindowGlobals } from './utils/window-globals';
 import { countNonEmptyLines, countXMLLines } from './utils/line-count.utils';
+import { useElementVisibility } from './hooks/useElementVisibility';
 
 export default function LyricSmith() {
   const [state, dispatch] = useReducer(reducer, null, createInitialState);
   const theme = useTheme(state.darkMode);
   const [isRecordingEnabled, setIsRecordingEnabled] = useState(false);
+  const controlBarRef = useRef<HTMLDivElement>(null);
+  const isControlBarVisible = useElementVisibility(controlBarRef);
 
   // Initialize window globals for console access
   useEffect(() => {
@@ -172,21 +176,32 @@ export default function LyricSmith() {
           plainTextLineCount={plainTextLineCount}
         />
 
-        <ControlBar
-          originalCount={state.originalSyllableCount}
-          currentCount={state.currentSyllableCount}
-          darkMode={state.darkMode}
-          onToggleDarkMode={handleToggleDarkMode}
+        <div ref={controlBarRef}>
+          <ControlBar
+            originalCount={state.originalSyllableCount}
+            currentCount={state.currentSyllableCount}
+            darkMode={state.darkMode}
+            onToggleDarkMode={handleToggleDarkMode}
+            onUndo={handleUndo}
+            onRedo={handleRedo}
+            onExportXML={handleExportXML}
+            canUndo={canUndo}
+            canRedo={canRedo}
+            canExport={canExport}
+          />
+        </div>
+
+        <FloatingUndoRedo
           onUndo={handleUndo}
           onRedo={handleRedo}
-          onExportXML={handleExportXML}
           canUndo={canUndo}
           canRedo={canRedo}
-          canExport={canExport}
+          darkMode={state.darkMode}
+          isVisible={!isControlBarVisible}
         />
 
-        <SyllableDisplay 
-          state={state} 
+        <SyllableDisplay
+          state={state}
           onMergeSyllables={handleMergeSyllables}
         />
       </div>
