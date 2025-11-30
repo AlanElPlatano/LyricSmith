@@ -22,5 +22,9 @@ export const ACTION_TYPES = {
   IMPORT_PLAIN_TEXT: 'import_plain_text' as const,
   TOGGLE_DARK_MODE: 'toggle_dark_mode' as const,
   SET_ERROR: 'set_error' as const,
-  CLEAR_ERROR: 'clear_error' as const
+  CLEAR_ERROR: 'clear_error' as const,
+  START_RECORDING: 'start_recording' as const,
+  STOP_RECORDING: 'stop_recording' as const,
+  CLEAR_RECORDING: 'clear_recording' as const,
+  SET_RECORDING_TEST_NAME: 'set_recording_test_name' as const
 };

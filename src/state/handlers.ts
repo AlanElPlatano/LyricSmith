@@ -1,4 +1,4 @@
-import type { AppState } from '../types/state.types';
+import type { AppState, MergeAction } from '../types/state.types';
 import { parseXML, groupVocalsIntoLines, mergeVocalsInXMLData, updateLineGroupsAfterMerge } from '../utils/xml.utils';
 import { detectAlphabet } from '../utils/alphabet.utils';
 import { parseTextIntoSyllables } from '../utils/text.utils';
@@ -81,6 +81,19 @@ export function handleMergeSyllables(
     return state;
   }
 
+  // Capture merge action if recording mode is active
+  let newRecordedActions = state.recordedActions;
+  if (state.recordingMode) {
+    const mergeAction: MergeAction = {
+      step: state.recordedActions.length + 1,
+      description: `Merge ${rowType} syllable at line ${lineIndex + 1}, position ${syllableIndex + 1}`,
+      lineIndex,
+      syllableIndex,
+      rowType
+    };
+    newRecordedActions = [...state.recordedActions, mergeAction];
+  }
+
   if (rowType === 'xml') {
     const vocalIndices = state.lineGroups[lineIndex];
 
@@ -117,7 +130,8 @@ export function handleMergeSyllables(
       xmlSyllables: newXmlSyllables,
       plainTextLines: newPlainTextLines,
       currentSyllableCount: newVocals.length,
-      originalSyllableCount: state.originalSyllableCount
+      originalSyllableCount: state.originalSyllableCount,
+      recordedActions: newRecordedActions
     };
 
     return addToHistory(mergedState);
@@ -137,7 +151,8 @@ export function handleMergeSyllables(
     const mergedState = {
       ...state,
       plainTextLines: newPlainTextLines,
-      currentSyllableCount: newCount
+      currentSyllableCount: newCount,
+      recordedActions: newRecordedActions
     };
 
     return addToHistory(mergedState);

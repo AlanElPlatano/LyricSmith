@@ -8,6 +8,14 @@ export interface HistoryState {
   lineGroups: number[][];
 }
 
+export interface MergeAction {
+  step: number;
+  description: string;
+  lineIndex: number;
+  syllableIndex: number;
+  rowType: 'xml' | 'plain';
+}
+
 export interface AppState {
   xmlData: ParsedXMLData | null;
   plainTextRaw: string;
@@ -21,6 +29,9 @@ export interface AppState {
   error: string | null;
   history: HistoryState[];
   historyIndex: number;
+  recordingMode: boolean;
+  recordedActions: MergeAction[];
+  recordingTestName: string;
 }
 
 export type ActionType =
@@ -31,4 +42,8 @@ export type ActionType =
   | { type: 'clear_error' }
   | { type: 'merge_syllables'; payload: { lineIndex: number; syllableIndex: number; rowType: 'xml' | 'plain' } }
   | { type: 'undo' }
-  | { type: 'redo' };
+  | { type: 'redo' }
+  | { type: 'start_recording'; payload: string }
+  | { type: 'stop_recording' }
+  | { type: 'clear_recording' }
+  | { type: 'set_recording_test_name'; payload: string };

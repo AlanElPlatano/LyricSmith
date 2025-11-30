@@ -16,7 +16,10 @@ export function createInitialState(): AppState {
     darkMode: true,
     error: null,
     history: [],
-    historyIndex: -1
+    historyIndex: -1,
+    recordingMode: false,
+    recordedActions: [],
+    recordingTestName: ''
   };
 }
 
@@ -64,7 +67,34 @@ export function reducer(state: AppState, action: ActionType): AppState {
         };
       }
       return state;
-      
+
+    case 'start_recording':
+      return {
+        ...state,
+        recordingMode: true,
+        recordedActions: [],
+        recordingTestName: action.payload
+      };
+
+    case 'stop_recording':
+      return {
+        ...state,
+        recordingMode: false
+      };
+
+    case 'clear_recording':
+      return {
+        ...state,
+        recordedActions: [],
+        recordingTestName: ''
+      };
+
+    case 'set_recording_test_name':
+      return {
+        ...state,
+        recordingTestName: action.payload
+      };
+
     default:
       return state;
   }

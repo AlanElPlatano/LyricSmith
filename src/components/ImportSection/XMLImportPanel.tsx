@@ -7,9 +7,10 @@ import { TextImportArea } from './TextImportArea';
 interface XMLImportPanelProps {
   onImport: (content: string) => void;
   theme: ThemeClasses;
+  lineCount: number;
 }
 
-export function XMLImportPanel({ onImport, theme }: XMLImportPanelProps) {
+export function XMLImportPanel({ onImport, theme, lineCount }: XMLImportPanelProps) {
   const [xmlText, setXmlText] = React.useState('');
 
   const handleTextChange = (text: string) => {
@@ -21,9 +22,16 @@ export function XMLImportPanel({ onImport, theme }: XMLImportPanelProps) {
 
   return (
     <div>
-      <h3 className={`text-lg font-semibold mb-3 ${theme.text}`}>
-        1. Import XML File (EOF Export)
-      </h3>
+      <div className="flex items-center justify-between mb-3">
+        <h3 className={`text-lg font-semibold ${theme.text}`}>
+          1. Import XML File (EOF Export)
+        </h3>
+        {lineCount > 0 && (
+          <span className={`text-sm ${theme.textMuted}`}>
+            Total lines: {lineCount}
+          </span>
+        )}
+      </div>
       <FileUploadButton
         accept=".xml"
         onFileSelect={(content) => {

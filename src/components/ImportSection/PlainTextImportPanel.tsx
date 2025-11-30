@@ -7,9 +7,11 @@ import { TextImportArea } from './TextImportArea';
 interface PlainTextImportPanelProps {
   onImport: (content: string) => void;
   theme: ThemeClasses;
+  lineCount: number;
+  expectedLineCount: number;
 }
 
-export function PlainTextImportPanel({ onImport, theme }: PlainTextImportPanelProps) {
+export function PlainTextImportPanel({ onImport, theme, lineCount, expectedLineCount }: PlainTextImportPanelProps) {
   const [plainText, setPlainText] = React.useState('');
 
   const handleTextChange = (text: string) => {
@@ -19,11 +21,22 @@ export function PlainTextImportPanel({ onImport, theme }: PlainTextImportPanelPr
     }
   };
 
+  const hasExpected = expectedLineCount > 0;
+  const hasMismatch = hasExpected && lineCount > 0 && lineCount !== expectedLineCount;
+
   return (
     <div>
-      <h3 className={`text-lg font-semibold mb-3 ${theme.text}`}>
-        2. Import Correct Lyrics (Plain Text)
-      </h3>
+      <div className="flex items-center justify-between mb-3">
+        <h3 className={`text-lg font-semibold ${theme.text}`}>
+          2. Import Correct Lyrics (Plain Text)
+        </h3>
+        {lineCount > 0 && (
+          <span className={`text-sm ${hasMismatch ? 'text-red-500 font-semibold' : theme.textMuted}`}>
+            Total lines: {lineCount}
+            {hasExpected && ` (expected: ${expectedLineCount})`}
+          </span>
+        )}
+      </div>
       <FileUploadButton
         // Accepted file types
         accept=".txt, .xml"
