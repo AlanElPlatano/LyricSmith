@@ -3476,13 +3476,6 @@
       "lineIndex": 54,
       "syllableIndex": 4,
       "rowType": "plain"
-    },
-    {
-      "step": 497,
-      "description": "Merge plain syllable at line 56, position 2",
-      "lineIndex": 55,
-      "syllableIndex": 1,
-      "rowType": "plain"
     }
   ],
   "expectedVocalCount": 469,
