@@ -1,4 +1,4 @@
-import { normalizeForComparison, segmentTextByAlphabet } from './text.utils';
+import { normalizeForComparison, segmentTextByAlphabet, splitIntoCharacters } from './text.utils';
 
 /**
  * Attempts to automatically match plain text syllables to XML syllables
@@ -13,7 +13,7 @@ export function autoMatchSyllables(
   xmlSyllables: string[]
 ): string[] {
   if (!plainTextLine.trim() || xmlSyllables.length === 0) {
-    return plainTextLine.split('').filter(c => c.trim().length > 0);
+    return splitIntoCharacters(plainTextLine);
   }
 
   // Segment the text by alphabet (Latin vs non-Latin)
@@ -28,8 +28,8 @@ export function autoMatchSyllables(
       result.push(...matched.syllables);
       xmlIndex += matched.consumed;
     } else {
-      // For non-Latin text, split into characters
-      const chars = segment.text.split('').filter(c => c.trim().length > 0);
+      // For non-Latin text, split into characters (preserving spaces)
+      const chars = splitIntoCharacters(segment.text);
       result.push(...chars);
       // Still consume XML syllables for non-Latin characters
       xmlIndex += chars.length;
@@ -65,15 +65,23 @@ function matchLatinSegment(
 
     if (match.found) {
       // Extract the matched portion from plain text
-      const matchedText = plainTextTrimmed.substring(
+      let matchedText = plainTextTrimmed.substring(
         plainTextIndex,
         plainTextIndex + match.length
       );
       plainTextIndex += match.length;
 
+      // Check if there's whitespace after the matched syllable
+      const hasSpaceAfter = plainTextIndex < plainTextTrimmed.length && plainTextTrimmed[plainTextIndex] === ' ';
+
       // Skip any whitespace after the matched syllable
       while (plainTextIndex < plainTextTrimmed.length && plainTextTrimmed[plainTextIndex] === ' ') {
         plainTextIndex++;
+      }
+
+      // Preserve space information by adding it to the syllable text
+      if (hasSpaceAfter) {
+        matchedText += ' ';
       }
 
       result.push(matchedText);
@@ -85,7 +93,7 @@ function matchLatinSegment(
 
       // If we can't match anymore, split remaining into characters and stop
       if (remainingText.trim().length > 0) {
-        const chars = remainingText.split('').filter(c => c.trim().length > 0);
+        const chars = splitIntoCharacters(remainingText);
         result.push(...chars);
         plainTextIndex = plainTextTrimmed.length; // Mark as fully consumed
       }
@@ -97,7 +105,7 @@ function matchLatinSegment(
   // (only if we exited the loop normally, not via break)
   if (plainTextIndex < plainTextTrimmed.length) {
     const remaining = plainTextTrimmed.substring(plainTextIndex);
-    const chars = remaining.split('').filter(c => c.trim().length > 0);
+    const chars = splitIntoCharacters(remaining);
     result.push(...chars);
   }
 
