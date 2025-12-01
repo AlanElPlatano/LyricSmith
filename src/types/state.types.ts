@@ -32,6 +32,7 @@ export interface AppState {
   recordingMode: boolean;
   recordedActions: MergeAction[];
   recordingTestName: string;
+  recordingUndoStack: MergeAction[];
 }
 
 export type ActionType =

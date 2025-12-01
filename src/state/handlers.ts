@@ -83,6 +83,8 @@ export function handleMergeSyllables(
 
   // Capture merge action if recording mode is active
   let newRecordedActions = state.recordedActions;
+  let newUndoStack = state.recordingUndoStack;
+
   if (state.recordingMode) {
     const mergeAction: MergeAction = {
       step: state.recordedActions.length + 1,
@@ -92,6 +94,10 @@ export function handleMergeSyllables(
       rowType
     };
     newRecordedActions = [...state.recordedActions, mergeAction];
+
+    // Clear the undo stack when a new action is performed
+    // This is standard undo/redo behavior: new actions invalidate the redo history
+    newUndoStack = [];
   }
 
   if (rowType === 'xml') {
@@ -119,7 +125,8 @@ export function handleMergeSyllables(
       xmlSyllables: newXmlSyllables,
       currentSyllableCount: newVocals.length,
       originalSyllableCount: state.originalSyllableCount,
-      recordedActions: newRecordedActions
+      recordedActions: newRecordedActions,
+      recordingUndoStack: newUndoStack
     };
 
     return addToHistory(mergedState);
@@ -140,7 +147,8 @@ export function handleMergeSyllables(
       ...state,
       plainTextLines: newPlainTextLines,
       currentSyllableCount: newCount,
-      recordedActions: newRecordedActions
+      recordedActions: newRecordedActions,
+      recordingUndoStack: newUndoStack
     };
 
     return addToHistory(mergedState);

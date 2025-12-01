@@ -19,7 +19,8 @@ export function createInitialState(): AppState {
     historyIndex: -1,
     recordingMode: false,
     recordedActions: [],
-    recordingTestName: ''
+    recordingTestName: '',
+    recordingUndoStack: []
   };
 }
 
@@ -51,20 +52,44 @@ export function reducer(state: AppState, action: ActionType): AppState {
     case 'undo':
       if (state.historyIndex > 0) {
         const previousState = state.history[state.historyIndex - 1];
-        return {
+        const newState = {
           ...restoreFromHistory(state, previousState),
           historyIndex: state.historyIndex - 1
         };
+
+        // If recording mode is active, pop the last action and push it to undo stack
+        if (state.recordingMode && state.recordedActions.length > 0) {
+          const lastAction = state.recordedActions[state.recordedActions.length - 1];
+          return {
+            ...newState,
+            recordedActions: state.recordedActions.slice(0, -1),
+            recordingUndoStack: [...state.recordingUndoStack, lastAction]
+          };
+        }
+
+        return newState;
       }
       return state;
-      
+
     case 'redo':
       if (state.historyIndex < state.history.length - 1) {
         const nextState = state.history[state.historyIndex + 1];
-        return {
+        const newState = {
           ...restoreFromHistory(state, nextState),
           historyIndex: state.historyIndex + 1
         };
+
+        // If recording mode is active, pop from undo stack and add back to recorded actions
+        if (state.recordingMode && state.recordingUndoStack.length > 0) {
+          const actionToRestore = state.recordingUndoStack[state.recordingUndoStack.length - 1];
+          return {
+            ...newState,
+            recordedActions: [...state.recordedActions, actionToRestore],
+            recordingUndoStack: state.recordingUndoStack.slice(0, -1)
+          };
+        }
+
+        return newState;
       }
       return state;
 
@@ -73,7 +98,8 @@ export function reducer(state: AppState, action: ActionType): AppState {
         ...state,
         recordingMode: true,
         recordedActions: [],
-        recordingTestName: action.payload
+        recordingTestName: action.payload,
+        recordingUndoStack: []
       };
 
     case 'stop_recording':
@@ -86,7 +112,8 @@ export function reducer(state: AppState, action: ActionType): AppState {
       return {
         ...state,
         recordedActions: [],
-        recordingTestName: ''
+        recordingTestName: '',
+        recordingUndoStack: []
       };
 
     case 'set_recording_test_name':
