@@ -2,7 +2,32 @@ import type { AlphabetType } from '../types';
 import { UNICODE_RANGES, ALPHABET_TYPES } from '../constants';
 
 export function splitIntoCharacters(text: string): string[] {
-  return text.split('').filter(char => char.trim().length > 0);
+  const chars: string[] = [];
+  let i = 0;
+
+  while (i < text.length) {
+    const char = text[i];
+
+    // Skip leading/standalone whitespace
+    if (char.trim().length === 0) {
+      i++;
+      continue;
+    }
+
+    // Add the character
+    let charWithSpace = char;
+    i++; // Move to next position
+
+    // Check if there's a space after this character
+    if (i < text.length && text[i] === ' ') {
+      charWithSpace += ' ';
+      i++; // Skip the space
+    }
+
+    chars.push(charWithSpace);
+  }
+
+  return chars;
 }
 
 function splitLatinIntoSyllables(text: string): string[] {
