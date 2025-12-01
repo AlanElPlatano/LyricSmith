@@ -1,6 +1,6 @@
-import { useEffect, useState, RefObject } from 'react';
+import { useEffect, useState, type RefObject } from 'react';
 
-export function useElementVisibility(ref: RefObject<HTMLElement>, threshold = 0.1): boolean {
+export function useElementVisibility(ref: RefObject<HTMLElement | null>, threshold = 0.1): boolean {
   const [isVisible, setIsVisible] = useState(true);
 
   useEffect(() => {
