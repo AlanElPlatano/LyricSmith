@@ -1,0 +1,414 @@
+{
+  "testCaseName": "rondo_of_nightmare",
+  "description": "Test case for rondo_of_nightmare",
+  "sourceXML": "source.xml",
+  "plainText": "plain_text.txt",
+  "targetXML": "target.xml",
+  "mergeActions": [
+    {
+      "step": 1,
+      "description": "Merge xml syllable at line 1, position 6",
+      "lineIndex": 0,
+      "syllableIndex": 5,
+      "rowType": "xml"
+    },
+    {
+      "step": 2,
+      "description": "Merge xml syllable at line 2, position 1",
+      "lineIndex": 1,
+      "syllableIndex": 0,
+      "rowType": "xml"
+    },
+    {
+      "step": 3,
+      "description": "Merge xml syllable at line 2, position 4",
+      "lineIndex": 1,
+      "syllableIndex": 3,
+      "rowType": "xml"
+    },
+    {
+      "step": 4,
+      "description": "Merge plain syllable at line 3, position 1",
+      "lineIndex": 2,
+      "syllableIndex": 0,
+      "rowType": "plain"
+    },
+    {
+      "step": 5,
+      "description": "Merge xml syllable at line 3, position 1",
+      "lineIndex": 2,
+      "syllableIndex": 0,
+      "rowType": "xml"
+    },
+    {
+      "step": 6,
+      "description": "Merge xml syllable at line 3, position 3",
+      "lineIndex": 2,
+      "syllableIndex": 2,
+      "rowType": "xml"
+    },
+    {
+      "step": 7,
+      "description": "Merge xml syllable at line 3, position 5",
+      "lineIndex": 2,
+      "syllableIndex": 4,
+      "rowType": "xml"
+    },
+    {
+      "step": 8,
+      "description": "Merge xml syllable at line 4, position 1",
+      "lineIndex": 3,
+      "syllableIndex": 0,
+      "rowType": "xml"
+    },
+    {
+      "step": 9,
+      "description": "Merge plain syllable at line 4, position 3",
+      "lineIndex": 3,
+      "syllableIndex": 2,
+      "rowType": "plain"
+    },
+    {
+      "step": 10,
+      "description": "Merge xml syllable at line 4, position 7",
+      "lineIndex": 3,
+      "syllableIndex": 6,
+      "rowType": "xml"
+    },
+    {
+      "step": 11,
+      "description": "Merge plain syllable at line 4, position 10",
+      "lineIndex": 3,
+      "syllableIndex": 9,
+      "rowType": "plain"
+    },
+    {
+      "step": 12,
+      "description": "Merge plain syllable at line 5, position 5",
+      "lineIndex": 4,
+      "syllableIndex": 4,
+      "rowType": "plain"
+    },
+    {
+      "step": 13,
+      "description": "Merge xml syllable at line 7, position 1",
+      "lineIndex": 6,
+      "syllableIndex": 0,
+      "rowType": "xml"
+    },
+    {
+      "step": 14,
+      "description": "Merge xml syllable at line 7, position 1",
+      "lineIndex": 6,
+      "syllableIndex": 0,
+      "rowType": "xml"
+    },
+    {
+      "step": 15,
+      "description": "Merge plain syllable at line 7, position 3",
+      "lineIndex": 6,
+      "syllableIndex": 2,
+      "rowType": "plain"
+    },
+    {
+      "step": 16,
+      "description": "Merge xml syllable at line 7, position 4",
+      "lineIndex": 6,
+      "syllableIndex": 3,
+      "rowType": "xml"
+    },
+    {
+      "step": 17,
+      "description": "Merge xml syllable at line 8, position 1",
+      "lineIndex": 7,
+      "syllableIndex": 0,
+      "rowType": "xml"
+    },
+    {
+      "step": 18,
+      "description": "Merge plain syllable at line 8, position 4",
+      "lineIndex": 7,
+      "syllableIndex": 3,
+      "rowType": "plain"
+    },
+    {
+      "step": 19,
+      "description": "Merge plain syllable at line 8, position 12",
+      "lineIndex": 7,
+      "syllableIndex": 11,
+      "rowType": "plain"
+    },
+    {
+      "step": 20,
+      "description": "Merge xml syllable at line 9, position 5",
+      "lineIndex": 8,
+      "syllableIndex": 4,
+      "rowType": "xml"
+    },
+    {
+      "step": 21,
+      "description": "Merge xml syllable at line 9, position 5",
+      "lineIndex": 8,
+      "syllableIndex": 4,
+      "rowType": "xml"
+    },
+    {
+      "step": 22,
+      "description": "Merge xml syllable at line 10, position 1",
+      "lineIndex": 9,
+      "syllableIndex": 0,
+      "rowType": "xml"
+    },
+    {
+      "step": 23,
+      "description": "Merge plain syllable at line 10, position 6",
+      "lineIndex": 9,
+      "syllableIndex": 5,
+      "rowType": "plain"
+    },
+    {
+      "step": 24,
+      "description": "Merge xml syllable at line 11, position 3",
+      "lineIndex": 10,
+      "syllableIndex": 2,
+      "rowType": "xml"
+    },
+    {
+      "step": 25,
+      "description": "Merge xml syllable at line 12, position 1",
+      "lineIndex": 11,
+      "syllableIndex": 0,
+      "rowType": "xml"
+    },
+    {
+      "step": 26,
+      "description": "Merge xml syllable at line 12, position 3",
+      "lineIndex": 11,
+      "syllableIndex": 2,
+      "rowType": "xml"
+    },
+    {
+      "step": 27,
+      "description": "Merge xml syllable at line 13, position 1",
+      "lineIndex": 12,
+      "syllableIndex": 0,
+      "rowType": "xml"
+    },
+    {
+      "step": 28,
+      "description": "Merge xml syllable at line 13, position 3",
+      "lineIndex": 12,
+      "syllableIndex": 2,
+      "rowType": "xml"
+    },
+    {
+      "step": 29,
+      "description": "Merge xml syllable at line 13, position 4",
+      "lineIndex": 12,
+      "syllableIndex": 3,
+      "rowType": "xml"
+    },
+    {
+      "step": 30,
+      "description": "Merge xml syllable at line 13, position 4",
+      "lineIndex": 12,
+      "syllableIndex": 3,
+      "rowType": "xml"
+    },
+    {
+      "step": 31,
+      "description": "Merge xml syllable at line 13, position 6",
+      "lineIndex": 12,
+      "syllableIndex": 5,
+      "rowType": "xml"
+    },
+    {
+      "step": 32,
+      "description": "Merge xml syllable at line 14, position 1",
+      "lineIndex": 13,
+      "syllableIndex": 0,
+      "rowType": "xml"
+    },
+    {
+      "step": 33,
+      "description": "Merge xml syllable at line 14, position 3",
+      "lineIndex": 13,
+      "syllableIndex": 2,
+      "rowType": "xml"
+    },
+    {
+      "step": 34,
+      "description": "Merge xml syllable at line 14, position 7",
+      "lineIndex": 13,
+      "syllableIndex": 6,
+      "rowType": "xml"
+    },
+    {
+      "step": 35,
+      "description": "Merge xml syllable at line 15, position 1",
+      "lineIndex": 14,
+      "syllableIndex": 0,
+      "rowType": "xml"
+    },
+    {
+      "step": 36,
+      "description": "Merge xml syllable at line 15, position 7",
+      "lineIndex": 14,
+      "syllableIndex": 6,
+      "rowType": "xml"
+    },
+    {
+      "step": 37,
+      "description": "Merge plain syllable at line 17, position 4",
+      "lineIndex": 16,
+      "syllableIndex": 3,
+      "rowType": "plain"
+    },
+    {
+      "step": 38,
+      "description": "Merge xml syllable at line 17, position 5",
+      "lineIndex": 16,
+      "syllableIndex": 4,
+      "rowType": "xml"
+    },
+    {
+      "step": 39,
+      "description": "Merge plain syllable at line 18, position 1",
+      "lineIndex": 17,
+      "syllableIndex": 0,
+      "rowType": "plain"
+    },
+    {
+      "step": 40,
+      "description": "Merge plain syllable at line 18, position 9",
+      "lineIndex": 17,
+      "syllableIndex": 8,
+      "rowType": "plain"
+    },
+    {
+      "step": 41,
+      "description": "Merge xml syllable at line 19, position 1",
+      "lineIndex": 18,
+      "syllableIndex": 0,
+      "rowType": "xml"
+    },
+    {
+      "step": 42,
+      "description": "Merge xml syllable at line 19, position 4",
+      "lineIndex": 18,
+      "syllableIndex": 3,
+      "rowType": "xml"
+    },
+    {
+      "step": 43,
+      "description": "Merge xml syllable at line 19, position 4",
+      "lineIndex": 18,
+      "syllableIndex": 3,
+      "rowType": "xml"
+    },
+    {
+      "step": 44,
+      "description": "Merge plain syllable at line 19, position 12",
+      "lineIndex": 18,
+      "syllableIndex": 11,
+      "rowType": "plain"
+    },
+    {
+      "step": 45,
+      "description": "Merge xml syllable at line 21, position 1",
+      "lineIndex": 20,
+      "syllableIndex": 0,
+      "rowType": "xml"
+    },
+    {
+      "step": 46,
+      "description": "Merge xml syllable at line 21, position 1",
+      "lineIndex": 20,
+      "syllableIndex": 0,
+      "rowType": "xml"
+    },
+    {
+      "step": 47,
+      "description": "Merge plain syllable at line 21, position 3",
+      "lineIndex": 20,
+      "syllableIndex": 2,
+      "rowType": "plain"
+    },
+    {
+      "step": 48,
+      "description": "Merge xml syllable at line 21, position 4",
+      "lineIndex": 20,
+      "syllableIndex": 3,
+      "rowType": "xml"
+    },
+    {
+      "step": 49,
+      "description": "Merge xml syllable at line 22, position 1",
+      "lineIndex": 21,
+      "syllableIndex": 0,
+      "rowType": "xml"
+    },
+    {
+      "step": 50,
+      "description": "Merge plain syllable at line 22, position 4",
+      "lineIndex": 21,
+      "syllableIndex": 3,
+      "rowType": "plain"
+    },
+    {
+      "step": 51,
+      "description": "Merge plain syllable at line 22, position 12",
+      "lineIndex": 21,
+      "syllableIndex": 11,
+      "rowType": "plain"
+    },
+    {
+      "step": 52,
+      "description": "Merge xml syllable at line 23, position 5",
+      "lineIndex": 22,
+      "syllableIndex": 4,
+      "rowType": "xml"
+    },
+    {
+      "step": 53,
+      "description": "Merge xml syllable at line 23, position 5",
+      "lineIndex": 22,
+      "syllableIndex": 4,
+      "rowType": "xml"
+    },
+    {
+      "step": 54,
+      "description": "Merge xml syllable at line 24, position 1",
+      "lineIndex": 23,
+      "syllableIndex": 0,
+      "rowType": "xml"
+    },
+    {
+      "step": 55,
+      "description": "Merge plain syllable at line 24, position 6",
+      "lineIndex": 23,
+      "syllableIndex": 5,
+      "rowType": "plain"
+    },
+    {
+      "step": 56,
+      "description": "Merge xml syllable at line 26, position 1",
+      "lineIndex": 25,
+      "syllableIndex": 0,
+      "rowType": "xml"
+    },
+    {
+      "step": 57,
+      "description": "Merge xml syllable at line 26, position 3",
+      "lineIndex": 25,
+      "syllableIndex": 2,
+      "rowType": "xml"
+    }
+  ],
+  "expectedVocalCount": 209,
+  "metadata": {
+    "author": "user",
+    "created": "2025-12-01",
+    "language": "cjk"
+  }
+}
