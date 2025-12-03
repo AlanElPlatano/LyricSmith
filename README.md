@@ -1,22 +1,22 @@
 # LyricSmith
 
-**A web-based tool for replacing romanized lyrics with native scripts in Rocksmith 2014 XML files.**
+A web-based tool for replacing romanized lyrics with native scripts in Rocksmith 2014 XML files.
 
 ![Screenshot of the main page of the tool](assets/sample.png "Screenshot while working with a song in Russian")
 
 ## The Problem
 
-Editor On Fire (EOF) doesn't support characters outside the Latin alphabet. When creating custom songs with lyrics in Cyrillic, Japanese, Chinese, or extended Latin scripts (Hungarian, Polish, etc.), creators have to:
-1. Sync lyrics using romanized text in EOF
+Editor On Fire (EOF) doesn't support characters outside the Latin alphabet. When creating custom songs with lyrics in Cyrillic, Japanese, Chinese, or extended Latin scripts (Hungarian, Polish, etc.), charters have to:
+1. Sync lyrics using only latin text in EOF
 2. Manually edit the exported XML file to replace each syllable
-3. Spend up to an hour on a task-prone process for a single song
+3. Spend up to an hour on a repetitive process for a single song
 
-**LyricSmith solves this by providing a visual syllable-matching interface that reduces this process to just a few minutes.**
+**LyricSmith helps in this process this by providing a syllable matching interface that reduces this process to just a few minutes.**
 
 ## Features
 
 - **Multi-alphabet support**: Works with Cyrillic, CJK (Chinese/Japanese/Korean), Arabic, and extended Latin scripts
-- **Automatic parsing**: Intelligently splits syllables based on alphabet detection
+- **Automatic parsing**: Intelligently splits matching syllables if they are also in latin script (useful for songs with mixed scripts)
 - **Visual matching**: Click syllables to merge them until they align with your target text
 - **Real-time validation**: Line count verification and syllable counter
 - **Undo/Redo**: Full history support for all edits
@@ -84,10 +84,6 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-This project is open source and available for the Rocksmith 2014 custom song community.
+This project is open source and available for the Rocksmith 2014 custom song community. Big shoutout to the CustomsForge and its team.
 
-**Disclaimer**: This software is not associated with Ubisoft or the Rocksmith team in any way or form.
-
-## Acknowledgments
-
-Created for the Rocksmith 2014 custom song community to help in the process of creating multi-language customs.
+**Disclaimer**: This software is NOT associated with Ubisoft or the Rocksmith team in any way or form.
