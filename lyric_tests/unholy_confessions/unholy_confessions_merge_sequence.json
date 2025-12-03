@@ -1,0 +1,15 @@
+{
+"testCaseName": "unholy_confessions",
+  "description": "Test case for unholy_confessions",
+  "sourceXML": "source.xml",
+  "plainText": "plain_text.txt",
+  "targetXML": "target.xml",
+  "mergeActions": [
+  ],
+  "expectedVocalCount": 297,
+  "metadata": {
+    "author": "user",
+    "created": "2025-12-03",
+    "language": "latin"
+  }
+}
