@@ -48,10 +48,18 @@ function shouldAddHyphen(
     return false;
   }
 
-  // Check if current and next syllables should be connected
-  // by looking at the plain text structure
+  // Check if there's a next syllable
+  const nextSyllable = plainTextSyllables[currentIndex + 1];
+  if (!nextSyllable || nextSyllable.length === 0) {
+    return false;
+  }
+
+  // Check if the current syllable is empty (after trimming)
+  if (currentLyricText.trim().length === 0) {
+    return false;
+  }
+
   const currentSyllable = plainTextSyllables[currentIndex] || '';
-  const nextSyllable = plainTextSyllables[currentIndex + 1] || '';
 
   // If current syllable ends with whitespace, they're separate words - NO hyphen
   if (currentSyllable.endsWith(' ') || currentSyllable.trimEnd() !== currentSyllable) {
@@ -59,18 +67,12 @@ function shouldAddHyphen(
   }
 
   // If next syllable starts with whitespace, they're separate words - NO hyphen
-  if (nextSyllable.startsWith(' ')) {
+  if (nextSyllable.startsWith(' ') || nextSyllable.trimStart() !== nextSyllable) {
     return false;
   }
 
-  // Check if the current syllable is empty (after trimming)
-  // If so, don't add hyphen
-  if (currentLyricText.trim().length === 0) {
-    return false;
-  }
-
-  // If current syllable doesn't end with space and next exists, add hyphen
-  return nextSyllable.length > 0;
+  // Both syllables are non-empty and neither has separating whitespace - add hyphen
+  return true;
 }
 
 export function generateXMLFromState(
@@ -112,7 +114,6 @@ export function generateXMLFromState(
 
       if (hasActualChange) {
         // We have a REAL replacement from plain text (syllable content changed)
-        // Preserve prefix from original, replace core content
         const rawReplacement = plainTextSyllable!;
         const hasTrailingSpace = rawReplacement !== rawReplacement.trimEnd();
         let trimmedReplacement = rawReplacement.trim();
@@ -123,6 +124,11 @@ export function generateXMLFromState(
           trimmedReplacement = trimmedReplacement.substring(1);
         }
 
+        // Check if the replacement text starts with a quote or other special prefix
+        // If so, DON'T add the original prefix (avoids double quotes)
+        const replacementHasPrefix = /^[^a-zA-Z0-9\u00C0-\u024F\u1E00-\u1EFF\u0400-\u04FF\u3040-\u30FF\u4E00-\u9FFF]+/.test(trimmedReplacement);
+        const prefixToUse = replacementHasPrefix ? '' : originalLyricParts.prefix;
+
         // Determine if we should add a hyphen:
         // - If the plain text has a trailing space, NO hyphen (word boundary)
         // - Otherwise, check plain text structure
@@ -130,7 +136,7 @@ export function generateXMLFromState(
                                 shouldAddHyphen(plainTextSyllables, syllableIndex, isLastInLine, trimmedReplacement);
 
         // Build the final lyric: prefix + new core + hyphen(s) if needed
-        let lyricContent = originalLyricParts.prefix + trimmedReplacement;
+        let lyricContent = prefixToUse + trimmedReplacement;
 
         if (shouldHyphenate) {
           // Check if the lyric already ends with a hyphen (part of the text content)
@@ -149,20 +155,40 @@ export function generateXMLFromState(
 
         finalLyric = escapeXMLAttribute(lyricContent);
       } else {
-        // No change - keep original lyric exactly as-is, only adjust the + marker
+        // No change - preserve original lyric structure, only adjust + marker position
         let lyricContent = originalVocal.lyric;
 
-        // Remove any existing + marker
-        if (lyricContent.endsWith('+')) {
-          lyricContent = lyricContent.slice(0, -1);
+        // Check if lyric ends with a quote/punctuation followed by markers (e.g., "za"+")
+        const quotePlusPattern = /([^a-zA-Z0-9\-+\u00C0-\u024F\u1E00-\u1EFF\u0400-\u04FF\u3040-\u30FF\u4E00-\u9FFF])([-+]+)$/;
+        const quotePlusMatch = lyricContent.match(quotePlusPattern);
+
+        let contentWithoutPlus: string;
+        let hadHyphen = false;
+
+        if (quotePlusMatch) {
+          // Has a special char (quote, comma, etc.) before markers (e.g., "za"+")
+          // Extract: content + quote, preserve the hyphen status
+          const suffix = quotePlusMatch[1]; // The quote or punctuation
+          const markers = quotePlusMatch[2]; // The -+ markers
+          hadHyphen = markers.includes('-');
+          const contentBeforeSuffix = lyricContent.substring(0, lyricContent.length - quotePlusMatch[0].length);
+          contentWithoutPlus = contentBeforeSuffix + suffix + (hadHyphen ? '-' : '');
+        } else {
+          // No special suffix - just strip + but preserve -
+          hadHyphen = lyricContent.includes('-') && !lyricContent.endsWith('+');
+          contentWithoutPlus = lyricContent.replace(/\+$/, '');
         }
 
-        // Add + marker only if this is the last syllable in the line
+        // Rebuild with + marker only if this is the last syllable
+        let rebuiltLyric = contentWithoutPlus;
+
         if (isLastInLine) {
-          lyricContent += '+';
+          // Remove trailing - before adding +
+          rebuiltLyric = rebuiltLyric.replace(/-$/, '');
+          rebuiltLyric += '+';
         }
 
-        finalLyric = escapeXMLAttribute(lyricContent);
+        finalLyric = escapeXMLAttribute(rebuiltLyric);
       }
 
       // Create the vocal element with preserved timing
