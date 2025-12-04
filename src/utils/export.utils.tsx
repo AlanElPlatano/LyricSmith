@@ -17,18 +17,25 @@ function escapeXMLAttribute(text: string): string {
 /**
  * Extracts prefix (non-alphanumeric chars at start) and suffix (non-alphanumeric chars at end)
  * from a lyric string, preserving special characters like quotes, punctuation, etc.
+ * NOTE: Suffix is extracted BEFORE markers (- and +), so "za"+" will have suffix = '"'
  */
 function extractLyricParts(lyric: string): { prefix: string; core: string; suffix: string } {
   // Match leading non-alphanumeric chars (excluding hyphens and plus)
-  const prefixMatch = lyric.match(/^[^a-zA-Z0-9\-+\u00C0-\u024F\u1E00-\u1EFF]+/);
+  const prefixMatch = lyric.match(/^[^a-zA-Z0-9\-+\u00C0-\u024F\u1E00-\u1EFF\u0400-\u04FF\u3040-\u30FF\u4E00-\u9FFF]+/);
   const prefix = prefixMatch ? prefixMatch[0] : '';
 
-  // Match trailing non-alphanumeric chars (excluding hyphens and plus)
-  const suffixMatch = lyric.match(/[^a-zA-Z0-9\-+\u00C0-\u024F\u1E00-\u1EFF]+$/);
+  // First, temporarily remove markers (- and +) from the end to find suffix
+  const withoutMarkers = lyric.replace(/[-+]+$/, '');
+
+  // Match trailing non-alphanumeric chars (after removing markers)
+  const suffixMatch = withoutMarkers.match(/[^a-zA-Z0-9\u00C0-\u024F\u1E00-\u1EFF\u0400-\u04FF\u3040-\u30FF\u4E00-\u9FFF]+$/);
   const suffix = suffixMatch ? suffixMatch[0] : '';
 
-  // Core is everything between prefix and suffix
-  const core = lyric.substring(prefix.length, lyric.length - suffix.length);
+  // Core is the lyric without prefix and without suffix, but still including markers
+  // Calculate: from end of prefix to (end of withoutMarkers - suffix length) + add back markers
+  const markers = lyric.substring(withoutMarkers.length); // Get the markers that were removed
+  const coreWithoutMarkers = withoutMarkers.substring(prefix.length, withoutMarkers.length - suffix.length);
+  const core = coreWithoutMarkers + markers;
 
   return { prefix, core, suffix };
 }
@@ -129,14 +136,24 @@ export function generateXMLFromState(
         const replacementHasPrefix = /^[^a-zA-Z0-9\u00C0-\u024F\u1E00-\u1EFF\u0400-\u04FF\u3040-\u30FF\u4E00-\u9FFF]+/.test(trimmedReplacement);
         const prefixToUse = replacementHasPrefix ? '' : originalLyricParts.prefix;
 
+        // Check if the replacement text has a suffix (like a comma or quote)
+        // If so, DON'T add the original suffix (avoids double commas/quotes)
+        const replacementHasSuffix = /[^a-zA-Z0-9\u00C0-\u024F\u1E00-\u1EFF\u0400-\u04FF\u3040-\u30FF\u4E00-\u9FFF]+$/.test(trimmedReplacement);
+
+        // Only preserve specific musical notation characters (quotes for fermatas)
+        // Don't preserve content-related suffixes like ?, !, etc.
+        const musicalNotationPattern = /^["]+$/;
+        const isMusicalNotation = originalLyricParts.suffix && musicalNotationPattern.test(originalLyricParts.suffix);
+        const suffixToUse = replacementHasSuffix ? '' : (isMusicalNotation ? originalLyricParts.suffix : '');
+
         // Determine if we should add a hyphen:
         // - If the plain text has a trailing space, NO hyphen (word boundary)
         // - Otherwise, check plain text structure
         const shouldHyphenate = !hasTrailingSpace &&
                                 shouldAddHyphen(plainTextSyllables, syllableIndex, isLastInLine, trimmedReplacement);
 
-        // Build the final lyric: prefix + new core + hyphen(s) if needed
-        let lyricContent = prefixToUse + trimmedReplacement;
+        // Build the final lyric: prefix + new core + suffix (if original had one and replacement doesn't) + hyphen(s) if needed
+        let lyricContent = prefixToUse + trimmedReplacement + suffixToUse;
 
         if (shouldHyphenate) {
           // Check if the lyric already ends with a hyphen (part of the text content)
@@ -154,41 +171,28 @@ export function generateXMLFromState(
         }
 
         finalLyric = escapeXMLAttribute(lyricContent);
-      } else {
+      } else{
         // No change - preserve original lyric structure, only adjust + marker position
         let lyricContent = originalVocal.lyric;
 
-        // Check if lyric ends with a quote/punctuation followed by markers (e.g., "za"+")
-        const quotePlusPattern = /([^a-zA-Z0-9\-+\u00C0-\u024F\u1E00-\u1EFF\u0400-\u04FF\u3040-\u30FF\u4E00-\u9FFF])([-+]+)$/;
-        const quotePlusMatch = lyricContent.match(quotePlusPattern);
+        // Strategy: Only touch the + marker, preserve everything else including quotes and hyphens
+        // Remove the + marker if present
+        let contentWithoutPlus = lyricContent.replace(/\+$/, '');
 
-        let contentWithoutPlus: string;
-        let hadHyphen = false;
-
-        if (quotePlusMatch) {
-          // Has a special char (quote, comma, etc.) before markers (e.g., "za"+")
-          // Extract: content + quote, preserve the hyphen status
-          const suffix = quotePlusMatch[1]; // The quote or punctuation
-          const markers = quotePlusMatch[2]; // The -+ markers
-          hadHyphen = markers.includes('-');
-          const contentBeforeSuffix = lyricContent.substring(0, lyricContent.length - quotePlusMatch[0].length);
-          contentWithoutPlus = contentBeforeSuffix + suffix + (hadHyphen ? '-' : '');
-        } else {
-          // No special suffix - just strip + but preserve -
-          hadHyphen = lyricContent.includes('-') && !lyricContent.endsWith('+');
-          contentWithoutPlus = lyricContent.replace(/\+$/, '');
-        }
-
-        // Rebuild with + marker only if this is the last syllable
-        let rebuiltLyric = contentWithoutPlus;
+        // If this is the last syllable in the line, we need to add + back
+        // But first, we need to handle the case where there's a quote before the +
+        // Example: "za"+" should become "za"+" (keep the quote)
 
         if (isLastInLine) {
-          // Remove trailing - before adding +
-          rebuiltLyric = rebuiltLyric.replace(/-$/, '');
-          rebuiltLyric += '+';
+          // Add the + marker
+          // But we need to check if there's a trailing hyphen that should be removed
+          // when adding the + (because - and + don't coexist at the end)
+          // Actually, the original might have had "+", so we just add it back
+          finalLyric = escapeXMLAttribute(contentWithoutPlus + '+');
+        } else {
+          // Not last in line - keep as-is without the +
+          finalLyric = escapeXMLAttribute(contentWithoutPlus);
         }
-
-        finalLyric = escapeXMLAttribute(rebuiltLyric);
       }
 
       // Create the vocal element with preserved timing
