@@ -1,6 +1,5 @@
 import type { ParsedXMLData } from '../types';
 import { saveFileToFolder } from './file-system.utils';
-import { normalizeForComparison } from './text.utils';
 import { detectAlphabet } from './alphabet.utils';
 import { ALPHABET_TYPES } from '../constants';
 
