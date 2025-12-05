@@ -1,6 +1,8 @@
 import type { ParsedXMLData } from '../types';
 import { saveFileToFolder } from './file-system.utils';
 import { normalizeForComparison } from './text.utils';
+import { detectAlphabet } from './alphabet.utils';
+import { ALPHABET_TYPES } from '../constants';
 
 /**
  * Escapes special XML characters to prevent breaking XML syntax
@@ -90,6 +92,12 @@ export function generateXMLFromState(
   // Start with the original header
   let xmlOutput = xmlData.header;
 
+  // Detect the alphabet type from plain text to determine hyphenation rules
+  const allPlainText = plainTextLines.flat().join('');
+  const alphabetType = detectAlphabet(allPlainText);
+  const isLatinBasedScript = alphabetType === ALPHABET_TYPES.LATIN ||
+                             alphabetType === ALPHABET_TYPES.CYRILLIC;
+
   // Open vocals tag
   xmlOutput += '<vocals count="' + xmlData.vocals.length + '">\n';
 
@@ -146,11 +154,21 @@ export function generateXMLFromState(
         const isMusicalNotation = originalLyricParts.suffix && musicalNotationPattern.test(originalLyricParts.suffix);
         const suffixToUse = replacementHasSuffix ? '' : (isMusicalNotation ? originalLyricParts.suffix : '');
 
+        // Check if the original lyric had a hyphen (before markers like + or -)
+        // The original XML already contains correct word boundary information for Latin-based scripts
+        const originalHadHyphen = /-(?=[-+]*$)/.test(originalLyricParts.core);
+
         // Determine if we should add a hyphen:
-        // - If the plain text has a trailing space, NO hyphen (word boundary)
-        // - Otherwise, check plain text structure
+        // For Latin-based scripts (Latin, Cyrillic):
+        //   1. Preserve original structure: if original had no hyphen, don't add one
+        //   2. If the plain text has a trailing space, NO hyphen (word boundary)
+        //   3. Otherwise, check plain text structure
+        // For CJK scripts (Japanese, Chinese, Korean):
+        //   - Ignore original hyphenation, use plain text structure only
+        //   - Each character is a syllable and needs hyphens between them
         const shouldHyphenate = !hasTrailingSpace &&
-                                shouldAddHyphen(plainTextSyllables, syllableIndex, isLastInLine, trimmedReplacement);
+                                shouldAddHyphen(plainTextSyllables, syllableIndex, isLastInLine, trimmedReplacement) &&
+                                (isLatinBasedScript ? originalHadHyphen : true);
 
         // Build the final lyric: prefix + new core + suffix (if original had one and replacement doesn't) + hyphen(s) if needed
         let lyricContent = prefixToUse + trimmedReplacement + suffixToUse;
