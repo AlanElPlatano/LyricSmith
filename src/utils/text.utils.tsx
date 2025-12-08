@@ -62,7 +62,11 @@ export function parseTextIntoSyllables(text: string, alphabetType: AlphabetType)
 }
 
 export function normalizeForComparison(text: string): string {
-  return text.toLowerCase().replace(/[^a-z0-9\u0400-\u04FF\u4E00-\u9FFF\u3040-\u309F\u30A0-\u30FF\u0600-\u06FF]/g, '');
+  return text
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\u0400-\u04FF\u4E00-\u9FFF\u3040-\u309F\u30A0-\u30FF\u0600-\u06FF]/g, '');
 }
 
 export function segmentTextByAlphabet(text: string): Array<{text: string, isLatin: boolean}> {
@@ -70,8 +74,8 @@ export function segmentTextByAlphabet(text: string): Array<{text: string, isLati
 
   if (text.length === 0) return segments;
 
-  // Helper to check if character is Latin or punctuation/whitespace
-  const isLatinOrPunctuation = (char: string) => /[a-zA-Z\s.,!?;:'"()\[\]{}\-\u2019\u201D\u2026]/.test(char);
+  // Helper to check if character is Latin (including extended Latin) or punctuation/whitespace
+  const isLatinOrPunctuation = (char: string) => /[a-zA-ZÀ-ÿ\u0100-\u017F\u0180-\u024F\s.,!?;:'"()\[\]{}\-\u2019\u201D\u2026]/.test(char);
 
   let currentIsLatin = isLatinOrPunctuation(text[0]);
   let currentSegment = '';

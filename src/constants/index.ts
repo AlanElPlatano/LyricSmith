@@ -11,7 +11,7 @@ export const UNICODE_RANGES = {
   CYRILLIC: /[\u0400-\u04FF]/,
   CJK: /[\u4E00-\u9FFF\u3040-\u309F\u30A0-\u30FF]/,
   ARABIC: /[\u0600-\u06FF]/,
-  LATIN_VOWELS: /[aeiouAEIOU]/
+  LATIN_VOWELS: /[aeiouAEIOUáàâäãåæéèêëíìîïóòôöõøúùûüýÿÁÀÂÄÃÅÆÉÈÊËÍÌÎÏÓÒÔÖÕØÚÙÛÜÝ]/
 };
 
 export const LINE_END_MARKER = '+';
