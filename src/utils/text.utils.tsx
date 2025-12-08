@@ -1,6 +1,9 @@
 import type { AlphabetType } from '../types';
 import { UNICODE_RANGES, ALPHABET_TYPES } from '../constants';
 
+const TRAILING_PUNCTUATION = /^[,.!?')\-\u2019\u201D]$/;
+const LEADING_PUNCTUATION = /^[(\u201C\u2018]$/;
+
 export function splitIntoCharacters(text: string): string[] {
   const chars: string[] = [];
   let i = 0;
@@ -14,14 +17,41 @@ export function splitIntoCharacters(text: string): string[] {
       continue;
     }
 
+    // Handle opening punctuation - merge with next character
+    if (LEADING_PUNCTUATION.test(char)) {
+      let combined = char;
+      i++;
+      // Collect the next non-whitespace character
+      while (i < text.length && text[i].trim().length === 0) {
+        i++;
+      }
+      if (i < text.length) {
+        combined += text[i];
+        i++;
+      }
+      // Check for trailing space
+      if (i < text.length && text[i] === ' ') {
+        combined += ' ';
+        i++;
+      }
+      chars.push(combined);
+      continue;
+    }
+
     // Add the character
     let charWithSpace = char;
-    i++; // Move to next position
+    i++;
 
-    // Check if there's a space after this character
+    // Collect any trailing punctuation
+    while (i < text.length && TRAILING_PUNCTUATION.test(text[i])) {
+      charWithSpace += text[i];
+      i++;
+    }
+
+    // Check if there's a space after this character (and any punctuation)
     if (i < text.length && text[i] === ' ') {
       charWithSpace += ' ';
-      i++; // Skip the space
+      i++;
     }
 
     chars.push(charWithSpace);
@@ -70,17 +100,26 @@ export function segmentTextByAlphabet(text: string): Array<{text: string, isLati
 
   if (text.length === 0) return segments;
 
-  // Helper to check if character is Latin or punctuation/whitespace
-  const isLatinOrPunctuation = (char: string) => /[a-zA-Z\s.,!?;:'"()\[\]{}\-\u2019\u201D\u2026]/.test(char);
+  const isLatinLetter = (char: string) => /[a-zA-Z]/.test(char);
+  const isPunctuation = (char: string) => /[.,!?;:'"()\[\]{}\-\u2019\u201D\u2026]/.test(char);
+  const isWhitespace = (char: string) => /\s/.test(char);
 
-  let currentIsLatin = isLatinOrPunctuation(text[0]);
+  let currentIsLatin = isLatinLetter(text[0]) || isPunctuation(text[0]) || isWhitespace(text[0]);
   let currentSegment = '';
 
   for (let i = 0; i < text.length; i++) {
     const char = text[i];
-    const charIsLatin = isLatinOrPunctuation(char);
 
-    if (i === 0) {
+    // Punctuation and whitespace inherit the type of the previous segment
+    // This keeps trailing punctuation with non-Latin text (e.g., "Беги," stays together)
+    if (isPunctuation(char) || isWhitespace(char)) {
+      currentSegment += char;
+      continue;
+    }
+
+    const charIsLatin = isLatinLetter(char);
+
+    if (i === 0 || currentSegment === '') {
       currentIsLatin = charIsLatin;
       currentSegment = char;
     } else if (currentIsLatin === charIsLatin) {
