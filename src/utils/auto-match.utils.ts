@@ -60,7 +60,8 @@ function matchLatinSegment(
     const match = findBestMatch(
       plainTextTrimmed,
       plainTextIndex,
-      cleanXmlSyllable
+      cleanXmlSyllable,
+      xmlSyllable
     );
 
     if (match.found) {
@@ -131,13 +132,17 @@ function cleanSyllable(syllable: string): string {
 function findBestMatch(
   plainText: string,
   startIndex: number,
-  xmlSyllable: string
+  xmlSyllable: string,
+  originalXmlSyllable: string
 ): { found: boolean; length: number } {
   if (xmlSyllable.trim().length === 0) {
     return { found: false, length: 0 };
   }
 
   const normalizedXml = normalizeForComparison(xmlSyllable);
+
+  // Check if the original XML syllable has a double-hyphen (real hyphen in word)
+  const hasWordHyphen = originalXmlSyllable.includes('--');
 
   // Try finding the syllable with some flexibility in length
   // Look ahead up to 2x the XML syllable length (to account for extra punctuation/spaces)
@@ -149,6 +154,13 @@ function findBestMatch(
   // Try exact length match first (most common case)
   const exactSubstring = plainText.substring(startIndex, startIndex + xmlSyllable.length);
   if (normalizeForComparison(exactSubstring) === normalizedXml) {
+    // If XML has a word hyphen, check if plain text has a hyphen after the match
+    if (hasWordHyphen) {
+      const nextChar = plainText[startIndex + xmlSyllable.length];
+      if (nextChar === '-') {
+        return { found: true, length: xmlSyllable.length + 1 };
+      }
+    }
     return { found: true, length: xmlSyllable.length };
   }
 
@@ -159,6 +171,13 @@ function findBestMatch(
 
     // Exact match of normalized content
     if (normalizedSubstring === normalizedXml) {
+      // If XML has a word hyphen, check if plain text has a hyphen after the match
+      if (hasWordHyphen) {
+        const nextChar = plainText[startIndex + len];
+        if (nextChar === '-') {
+          return { found: true, length: len + 1 };
+        }
+      }
       return { found: true, length: len };
     }
   }
