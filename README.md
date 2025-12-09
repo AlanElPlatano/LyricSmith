@@ -11,17 +11,19 @@ Editor On Fire (EOF) doesn't support characters outside the Latin alphabet. When
 2. Manually edit the exported XML file to replace each syllable
 3. Spend up to an hour on a repetitive process for a single song
 
-**LyricSmith helps in this process this by providing a syllable matching interface that reduces this process to just a few minutes.**
+**LyricSmith helps in this process this by providing a syllable matching interface that reduces this process to just a few minutes (or even a few seconds).**
 
 ## Features
 
 - **Multi-alphabet support**: Works with Cyrillic, CJK (Chinese/Japanese/Korean), Arabic, and extended Latin scripts
-- **Automatic parsing**: Intelligently splits matching syllables if they are also in latin script (useful for songs with mixed scripts)
+- **Automatic parsing**: Intelligently splits matching syllables if they are also in latin script (useful for songs with mixed scripts) with support for languages like Hungarian, Polish, Norwegian, Portuguese, etc that contain modified versions of the latin script.
 - **Visual matching**: Click syllables to merge them until they align with your target text
 - **Real-time validation**: Line count verification and syllable counter
 - **Undo/Redo**: Full history support for all edits
 - **100% client-side**: No data leaves your browser
 - **Zero installation**: Web-based tool, works anywhere
+- **Visual guides**: See the green/red ribbon on the left of each lyric line to check whether the syllable counts match between both rows, hover this ribbon with your mouse for more data.
+- **Line reset**: Click the X on the top right of each lyric line to undo all changes to the line.
 
 ## How It Works
 
@@ -46,7 +48,15 @@ Editor On Fire (EOF) doesn't support characters outside the Latin alphabet. When
 
 ## Getting Started
 
+If you are a Rocksmith charter and don't wanna deal with code, just go to:
+```
+https://alanelplatano.github.io/LyricSmith/
+```
+
 ### Local Development
+
+If you wanna check the code you can follow these steps:
+
 ```bash
 # Clone the repository
 git clone https://github.com/AlanElPlatano/LyricSmith
