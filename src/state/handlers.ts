@@ -40,28 +40,32 @@ export function handleXMLImport(state: AppState, xmlString: string): AppState {
 export function handlePlainTextImport(state: AppState, plainText: string): AppState {
   try {
     const alphabet = detectAlphabet(plainText);
-    
-    const plainTextLines = state.xmlData 
+
+    const plainTextLines = state.xmlData
       ? parseTextIntoSyllablesWithXMLReference(
-          plainText, 
-          state.xmlData, 
+          plainText,
+          state.xmlData,
           state.lineGroups,
           (text) => parseTextIntoSyllables(text, alphabet)
         )
       : parseTextIntoSyllables(plainText, alphabet);
-    
+
+    // Store a deep copy of the original lines for reset functionality
+    const originalPlainTextLines = plainTextLines.map(line => [...line]);
+
     const newState = {
       ...state,
       plainTextRaw: plainText,
       plainTextLines,
+      originalPlainTextLines,
       alphabet,
       error: null
     };
-    
+
     if (state.xmlData !== null) {
       return addToHistory(newState);
     }
-    
+
     return newState;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -163,4 +167,28 @@ export function handleMergeSyllables(
 
     return addToHistory(mergedState);
   }
+}
+
+export function handleResetLine(state: AppState, lineIndex: number): AppState {
+  if (lineIndex >= state.originalPlainTextLines.length || lineIndex >= state.plainTextLines.length) {
+    return state;
+  }
+
+  const originalLine = state.originalPlainTextLines[lineIndex];
+  if (!originalLine) {
+    return state;
+  }
+
+  const newPlainTextLines = [...state.plainTextLines];
+  newPlainTextLines[lineIndex] = [...originalLine];
+
+  const newCount = calculateTotalSyllableCount(newPlainTextLines);
+
+  const resetState = {
+    ...state,
+    plainTextLines: newPlainTextLines,
+    currentSyllableCount: newCount
+  };
+
+  return addToHistory(resetState);
 }

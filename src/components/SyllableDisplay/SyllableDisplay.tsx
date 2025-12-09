@@ -6,9 +6,10 @@ import { EmptyState } from './EmptyState';
 interface SyllableDisplayProps {
   state: AppState;
   onMergeSyllables: (lineIndex: number, syllableIndex: number, rowType: 'xml' | 'plain') => void;
+  onResetLine: (lineIndex: number) => void;
 }
 
-export function SyllableDisplay({ state, onMergeSyllables }: SyllableDisplayProps) {
+export function SyllableDisplay({ state, onMergeSyllables, onResetLine }: SyllableDisplayProps) {
   const { xmlData, lineGroups, plainTextLines, darkMode } = state;
   const theme = useTheme(darkMode);
   
@@ -31,6 +32,7 @@ export function SyllableDisplay({ state, onMergeSyllables }: SyllableDisplayProp
             plainTextSyllables={plainTextSyllables}
             theme={theme}
             onMergeSyllables={onMergeSyllables}
+            onResetLine={onResetLine}
           />
         );
       })}
