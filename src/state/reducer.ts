@@ -1,6 +1,6 @@
 import type { AppState, ActionType } from '../types/state.types';
 import { ALPHABET_TYPES, ACTION_TYPES } from '../constants';
-import { handleXMLImport, handlePlainTextImport, handleMergeSyllables } from './handlers';
+import { handleXMLImport, handlePlainTextImport, handleMergeSyllables, handleResetLine } from './handlers';
 import { restoreFromHistory } from './history';
 
 export function createInitialState(): AppState {
@@ -9,6 +9,7 @@ export function createInitialState(): AppState {
     plainTextRaw: '',
     lineGroups: [],
     plainTextLines: [],
+    originalPlainTextLines: [],
     xmlSyllables: [],
     alphabet: ALPHABET_TYPES.LATIN,
     originalSyllableCount: 0,
@@ -48,7 +49,10 @@ export function reducer(state: AppState, action: ActionType): AppState {
         action.payload.syllableIndex,
         action.payload.rowType
       );
-      
+
+    case 'reset_line':
+      return handleResetLine(state, action.payload.lineIndex);
+
     case 'undo':
       if (state.historyIndex > 0) {
         const previousState = state.history[state.historyIndex - 1];

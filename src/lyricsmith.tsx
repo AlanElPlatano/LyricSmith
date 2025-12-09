@@ -57,9 +57,16 @@ export default function LyricSmith() {
   };
 
   const handleMergeSyllables = (lineIndex: number, syllableIndex: number, rowType: 'xml' | 'plain') => {
-    dispatch({ 
-      type: 'merge_syllables', 
-      payload: { lineIndex, syllableIndex, rowType } 
+    dispatch({
+      type: 'merge_syllables',
+      payload: { lineIndex, syllableIndex, rowType }
+    });
+  };
+
+  const handleResetLine = (lineIndex: number) => {
+    dispatch({
+      type: 'reset_line',
+      payload: { lineIndex }
     });
   };
 
@@ -203,6 +210,7 @@ export default function LyricSmith() {
         <SyllableDisplay
           state={state}
           onMergeSyllables={handleMergeSyllables}
+          onResetLine={handleResetLine}
         />
       </div>
     </div>

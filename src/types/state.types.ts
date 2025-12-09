@@ -21,6 +21,7 @@ export interface AppState {
   plainTextRaw: string;
   lineGroups: number[][];
   plainTextLines: string[][];
+  originalPlainTextLines: string[][];
   xmlSyllables: string[];
   alphabet: AlphabetType;
   originalSyllableCount: number;
@@ -42,6 +43,7 @@ export type ActionType =
   | { type: 'set_error'; payload: string }
   | { type: 'clear_error' }
   | { type: 'merge_syllables'; payload: { lineIndex: number; syllableIndex: number; rowType: 'xml' | 'plain' } }
+  | { type: 'reset_line'; payload: { lineIndex: number } }
   | { type: 'undo' }
   | { type: 'redo' }
   | { type: 'start_recording'; payload: string }
