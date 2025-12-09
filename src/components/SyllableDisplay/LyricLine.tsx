@@ -17,6 +17,10 @@ export function LyricLine({ lineNumber, lineIndex, xmlSyllables, plainTextSyllab
     return Math.max(50, text.length * 8 + 24);
   };
 
+  const hasHyphens = React.useMemo(() => {
+    return xmlSyllables.map(syllable => syllable.endsWith('-'));
+  }, [xmlSyllables]);
+
   const matchStatus = React.useMemo(() => {
     if (!plainTextSyllables) {
       return {
@@ -98,6 +102,7 @@ export function LyricLine({ lineNumber, lineIndex, xmlSyllables, plainTextSyllab
         variant="xml"
         theme={theme}
         widths={widths}
+        hasHyphens={hasHyphens}
         onSyllableClick={(syllableIndex) => onMergeSyllables(lineIndex, syllableIndex, 'xml')}
       />
 
@@ -109,6 +114,7 @@ export function LyricLine({ lineNumber, lineIndex, xmlSyllables, plainTextSyllab
           variant="plain"
           theme={theme}
           widths={widths}
+          hasHyphens={hasHyphens}
           onSyllableClick={(syllableIndex) => onMergeSyllables(lineIndex, syllableIndex, 'plain')}
       />
       ) : (

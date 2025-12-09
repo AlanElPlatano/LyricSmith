@@ -6,26 +6,29 @@ interface SyllableRowProps {
   variant: 'xml' | 'plain';
   theme: ThemeClasses;
   widths?: number[];
+  hasHyphens?: boolean[];
   onSyllableClick?: (index: number) => void;
 }
 
-export function SyllableRow({ syllables, variant, theme, widths, onSyllableClick }: SyllableRowProps) {
+export function SyllableRow({ syllables, variant, theme, widths, hasHyphens, onSyllableClick }: SyllableRowProps) {
   return (
     <div className="flex flex-wrap gap-1">
       {syllables.map((syllable, index) => {
         const isLastSyllable = index === syllables.length - 1;
-        
+        const showHyphen = hasHyphens?.[index] ?? false;
+
         return (
-          <div 
-            key={`${variant}-${index}`} 
+          <div
+            key={`${variant}-${index}`}
             className="inline-flex justify-center items-center"
             style={widths ? { minWidth: `${widths[index]}px` } : undefined}
           >
-            <SyllableButton 
-              variant={variant} 
+            <SyllableButton
+              variant={variant}
               theme={theme}
               onClick={onSyllableClick ? () => onSyllableClick(index) : undefined}
               disabled={isLastSyllable}
+              showHyphen={showHyphen}
             >
               {syllable}
             </SyllableButton>
