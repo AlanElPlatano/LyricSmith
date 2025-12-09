@@ -21,9 +21,11 @@ export function autoMatchSyllables(
   const result: string[] = [];
   let xmlIndex = 0;
 
-  for (const segment of segments) {
+  for (let segmentIdx = 0; segmentIdx < segments.length; segmentIdx++) {
+    const segment = segments[segmentIdx];
+
     if (segment.isLatin && xmlIndex < xmlSyllables.length) {
-      // Try to auto-match Latin text
+      // For Latin segments, we can try to auto-match
       const matched = matchLatinSegment(segment.text, xmlSyllables, xmlIndex);
       result.push(...matched.syllables);
       xmlIndex += matched.consumed;
@@ -31,8 +33,34 @@ export function autoMatchSyllables(
       // For non-Latin text, split into characters (preserving spaces)
       const chars = splitIntoCharacters(segment.text);
       result.push(...chars);
-      // Still consume XML syllables for non-Latin characters
-      xmlIndex += chars.length;
+
+      // Check if there's a following Latin segment - if so, find alignment
+      const hasFollowingLatinSegment = segments.slice(segmentIdx + 1).some(s => s.isLatin);
+
+      if (hasFollowingLatinSegment) {
+        // Don't blindly consume XML syllables - instead, try to find where the next
+        // Latin segment aligns in the XML
+        const nextLatinSegment = segments.slice(segmentIdx + 1).find(s => s.isLatin);
+        if (nextLatinSegment) {
+          const alignmentPoint = findXmlAlignmentPoint(
+            nextLatinSegment.text,
+            xmlSyllables,
+            xmlIndex
+          );
+          if (alignmentPoint !== -1) {
+            // We found alignment, so jump to that point
+            xmlIndex = alignmentPoint;
+          } else {
+            // No alignment found, consume based on character count
+            xmlIndex += chars.length;
+          }
+        } else {
+          xmlIndex += chars.length;
+        }
+      } else {
+        // No following Latin segment, consume normally
+        xmlIndex += chars.length;
+      }
     }
   }
 
@@ -221,13 +249,40 @@ export function tryAutoMergeRemainingLine(
   const remainingSyllables = plainTextSyllables.slice(checkFromIndex);
   const remainingText = remainingSyllables.join('');
 
-  // Only attempt auto-merge if remaining text is primarily Latin
-  if (!isPrimarylyLatin(remainingText)) {
+  // Check if there's any Latin text in the remaining portion
+  // Even if it's not "primarily Latin", we should try to auto-match Latin words
+  const hasLatinText = /[a-zA-Z]/.test(remainingText);
+  if (!hasLatinText) {
     return plainTextSyllables;
   }
 
-  // Get corresponding XML syllables (from checkFromIndex onwards)
-  const remainingXmlSyllables = xmlSyllables.slice(checkFromIndex);
+  // Find the correct starting position in XML syllables by searching for alignment
+  // This handles cases where plain text and XML syllables are not 1:1 aligned
+  // We search from index 0 because we don't know where we are in the XML after merging
+  const xmlStartIndex = findXmlAlignmentPoint(
+    remainingText,
+    xmlSyllables,
+    0
+  );
+
+  if (xmlStartIndex === -1) {
+    // No alignment found, try the original approach as fallback
+    const remainingXmlSyllables = xmlSyllables.slice(checkFromIndex);
+    if (remainingXmlSyllables.length === 0) {
+      return plainTextSyllables;
+    }
+
+    const autoMerged = autoMatchSyllables(remainingText, remainingXmlSyllables);
+    if (autoMerged.length >= remainingSyllables.length) {
+      return plainTextSyllables;
+    }
+
+    const prefix = plainTextSyllables.slice(0, checkFromIndex);
+    return [...prefix, ...autoMerged];
+  }
+
+  // Use the aligned XML syllables for matching
+  const remainingXmlSyllables = xmlSyllables.slice(xmlStartIndex);
 
   if (remainingXmlSyllables.length === 0) {
     return plainTextSyllables;
@@ -244,4 +299,54 @@ export function tryAutoMergeRemainingLine(
   // Combine: keep syllables up to and including mergedIndex + auto-merged result
   const prefix = plainTextSyllables.slice(0, checkFromIndex);
   return [...prefix, ...autoMerged];
+}
+
+/**
+ * Finds the correct alignment point in XML syllables for the remaining plain text.
+ * Searches for a Latin word in the remaining text and finds its position in XML.
+ *
+ * @param remainingText - The remaining plain text to align
+ * @param xmlSyllables - All XML syllables for the line
+ * @param startSearchFrom - Index to start searching from in XML syllables
+ * @returns Index in xmlSyllables where alignment is found, or -1 if not found
+ */
+function findXmlAlignmentPoint(
+  remainingText: string,
+  xmlSyllables: string[],
+  startSearchFrom: number
+): number {
+  // Extract the first Latin word from remaining text
+  const latinWordMatch = remainingText.match(/[a-zA-Z]+/);
+  if (!latinWordMatch) {
+    return -1;
+  }
+
+  const firstLatinWord = latinWordMatch[0];
+  const normalizedWord = normalizeForComparison(firstLatinWord);
+
+  // Search for this word in XML syllables starting from startSearchFrom
+  for (let i = startSearchFrom; i < xmlSyllables.length; i++) {
+    const xmlSyllable = xmlSyllables[i]; // Keep original to check for hyphen
+    const cleanedXml = cleanSyllable(xmlSyllable);
+    const normalizedXml = normalizeForComparison(cleanedXml);
+
+    // Check if this XML syllable matches the start of the Latin word
+    // We need to be careful: "and" should match "and" but not match "A-"
+    // Strategy:
+    // 1. If XML syllable starts with the word, it's a match (e.g., "and" matches "and")
+    // 2. If word starts with XML syllable AND the syllable ends with hyphen (incomplete)
+    //    AND the syllable is at least 2 chars (to avoid single-char false matches),
+    //    it's a match (e.g., "screen" matches "sc-" or "scr-" but NOT "a-")
+    // 3. Otherwise, no match (e.g., "deep" should NOT match "de" without hyphen)
+    if (normalizedXml.startsWith(normalizedWord)) {
+      // XML syllable starts with the word (e.g., "and" matches "and" or "anderson")
+      return i;
+    } else if (normalizedWord.startsWith(normalizedXml) && xmlSyllable.endsWith('-') && normalizedXml.length >= 2) {
+      // Word starts with XML syllable, syllable is incomplete (ends with hyphen), and syllable is 2+ chars
+      // (e.g., "screen" matches "sc-" but "and" does NOT match "a-")
+      return i;
+    }
+  }
+
+  return -1;
 }

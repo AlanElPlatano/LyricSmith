@@ -1,6 +1,6 @@
 import type { ParsedXMLData } from '../types';
 import { splitIntoCharacters } from './text.utils';
-import { autoMatchSyllables, isPrimarylyLatin } from './auto-match.utils';
+import { autoMatchSyllables } from './auto-match.utils';
 
 export function parseTextIntoSyllablesWithXMLReference(
   plainText: string,
@@ -26,8 +26,10 @@ export function parseTextIntoSyllablesWithXMLReference(
       // Get XML syllables for this line
       const xmlSyllables = vocalIndices.map(index => xmlData.vocals[index].lyric);
 
-      // Try auto-matching for Latin text, otherwise fall back to character splitting
-      const lineSyllables = isPrimarylyLatin(plainTextLine)
+      // Try auto-matching if there's any Latin text, otherwise fall back to character splitting
+      // We check for any Latin text (not just "primarily Latin") to handle mixed-script lines
+      const hasLatinText = /[a-zA-Z]/.test(plainTextLine);
+      const lineSyllables = hasLatinText
         ? autoMatchSyllables(plainTextLine, xmlSyllables)
         : splitIntoCharacters(plainTextLine);
 
