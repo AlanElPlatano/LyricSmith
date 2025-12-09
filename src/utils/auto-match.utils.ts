@@ -193,3 +193,55 @@ export function isPrimarylyLatin(text: string): boolean {
   const totalChars = text.replace(/\s/g, '').length;
   return totalChars > 0 && latinChars / totalChars > 0.5;
 }
+
+/**
+ * Attempts to auto-merge remaining syllables in a line after a manual merge.
+ * This enables progressive auto-merging: after a user manually merges non-Latin
+ * characters, any remaining Latin text can be automatically matched.
+ *
+ * @param plainTextSyllables - Current syllables in the plain text line
+ * @param xmlSyllables - XML syllables for this line
+ * @param mergedIndex - Index of the syllable that was just merged
+ * @returns New array of syllables with auto-merging applied, or original if no improvement
+ */
+export function tryAutoMergeRemainingLine(
+  plainTextSyllables: string[],
+  xmlSyllables: string[],
+  mergedIndex: number
+): string[] {
+  // Check from the syllable AFTER the one just merged
+  const checkFromIndex = mergedIndex + 1;
+
+  // Nothing to merge if we're at or past the end
+  if (checkFromIndex >= plainTextSyllables.length) {
+    return plainTextSyllables;
+  }
+
+  // Get the remaining portion of the line (after the merged syllable)
+  const remainingSyllables = plainTextSyllables.slice(checkFromIndex);
+  const remainingText = remainingSyllables.join('');
+
+  // Only attempt auto-merge if remaining text is primarily Latin
+  if (!isPrimarylyLatin(remainingText)) {
+    return plainTextSyllables;
+  }
+
+  // Get corresponding XML syllables (from checkFromIndex onwards)
+  const remainingXmlSyllables = xmlSyllables.slice(checkFromIndex);
+
+  if (remainingXmlSyllables.length === 0) {
+    return plainTextSyllables;
+  }
+
+  // Try to auto-match the remaining text
+  const autoMerged = autoMatchSyllables(remainingText, remainingXmlSyllables);
+
+  // Only apply if we actually reduced the syllable count
+  if (autoMerged.length >= remainingSyllables.length) {
+    return plainTextSyllables;
+  }
+
+  // Combine: keep syllables up to and including mergedIndex + auto-merged result
+  const prefix = plainTextSyllables.slice(0, checkFromIndex);
+  return [...prefix, ...autoMerged];
+}

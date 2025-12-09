@@ -4,6 +4,7 @@ import { detectAlphabet } from '../utils/alphabet.utils';
 import { parseTextIntoSyllables } from '../utils/text.utils';
 import { parseTextIntoSyllablesWithXMLReference } from '../utils/matching.utils';
 import { mergeSyllablesInArray, calculateTotalSyllableCount } from '../utils/syllable.utils';
+import { tryAutoMergeRemainingLine } from '../utils/auto-match.utils';
 import { addToHistory } from './history';
 
 export function handleXMLImport(state: AppState, xmlString: string): AppState {
@@ -142,8 +143,17 @@ export function handleMergeSyllables(
     const currentLineSyllables = state.plainTextLines[lineIndex];
     const mergedLineSyllables = mergeSyllablesInArray(currentLineSyllables, syllableIndex, false);
 
+    // Try to auto-merge remaining syllables on this line
+    const vocalIndices = state.lineGroups[lineIndex];
+    const xmlSyllablesForLine = vocalIndices.map(index => state.xmlSyllables[index]);
+    const finalLineSyllables = tryAutoMergeRemainingLine(
+      mergedLineSyllables,
+      xmlSyllablesForLine,
+      syllableIndex
+    );
+
     const newPlainTextLines = [...state.plainTextLines];
-    newPlainTextLines[lineIndex] = mergedLineSyllables;
+    newPlainTextLines[lineIndex] = finalLineSyllables;
 
     const newCount = calculateTotalSyllableCount(newPlainTextLines);
 
