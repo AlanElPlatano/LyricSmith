@@ -326,11 +326,24 @@ function findXmlAlignmentPoint(
 
   // Search for this word in XML syllables starting from startSearchFrom
   for (let i = startSearchFrom; i < xmlSyllables.length; i++) {
-    const xmlSyllable = cleanSyllable(xmlSyllables[i]);
-    const normalizedXml = normalizeForComparison(xmlSyllable);
+    const xmlSyllable = xmlSyllables[i]; // Keep original to check for hyphen
+    const cleanedXml = cleanSyllable(xmlSyllable);
+    const normalizedXml = normalizeForComparison(cleanedXml);
 
-    // Check if this XML syllable starts with or contains the Latin word
-    if (normalizedXml.startsWith(normalizedWord) || normalizedWord.startsWith(normalizedXml)) {
+    // Check if this XML syllable matches the start of the Latin word
+    // We need to be careful: "and" should match "and" but not match "A-"
+    // Strategy:
+    // 1. If XML syllable starts with the word, it's a match (e.g., "and" matches "and")
+    // 2. If word starts with XML syllable AND the syllable ends with hyphen (incomplete)
+    //    AND the syllable is at least 2 chars (to avoid single-char false matches),
+    //    it's a match (e.g., "screen" matches "sc-" or "scr-" but NOT "a-")
+    // 3. Otherwise, no match (e.g., "deep" should NOT match "de" without hyphen)
+    if (normalizedXml.startsWith(normalizedWord)) {
+      // XML syllable starts with the word (e.g., "and" matches "and" or "anderson")
+      return i;
+    } else if (normalizedWord.startsWith(normalizedXml) && xmlSyllable.endsWith('-') && normalizedXml.length >= 2) {
+      // Word starts with XML syllable, syllable is incomplete (ends with hyphen), and syllable is 2+ chars
+      // (e.g., "screen" matches "sc-" but "and" does NOT match "a-")
       return i;
     }
   }
