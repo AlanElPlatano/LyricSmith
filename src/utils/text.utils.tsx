@@ -104,8 +104,10 @@ export function segmentTextByAlphabet(text: string): Array<{text: string, isLati
 
   if (text.length === 0) return segments;
 
-  // Helper to check if character is Latin (including extended Latin) or punctuation/whitespace
-  const isLatinOrPunctuation = (char: string) => /[a-zA-ZÀ-ÿ\u0100-\u017F\u0180-\u024F\s.,!?;:'"()\[\]{}\-\u2019\u201D\u2026]/.test(char);
+  // Helper to check if character is Latin (including extended Latin with diacritics)
+  const isLatinLetter = (char: string) => /[a-zA-ZÀ-ÿ\u0100-\u017F\u0180-\u024F]/.test(char);
+  const isPunctuation = (char: string) => /[.,!?;:'"()\[\]{}\-\u2019\u201D\u2026]/.test(char);
+  const isWhitespace = (char: string) => /\s/.test(char);
 
   let currentIsLatin = isLatinLetter(text[0]) || isPunctuation(text[0]) || isWhitespace(text[0]);
   let currentSegment = '';
