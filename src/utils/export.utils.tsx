@@ -2,6 +2,14 @@ import type { ParsedXMLData } from '../types';
 import { saveFileToFolder } from './file-system.utils';
 import { detectAlphabet } from './alphabet.utils';
 import { ALPHABET_TYPES } from '../constants';
+import { APP_VERSION } from './version';
+
+/**
+ * Generates the LyricSmith version comment header
+ */
+function generateVersionComment(): string {
+  return `<!-- LyricSmith v${APP_VERSION} -->\n`;
+}
 
 /**
  * Escapes special XML characters to prevent breaking XML syntax
@@ -97,8 +105,9 @@ export function generateXMLFromState(
   const isLatinBasedScript = alphabetType === ALPHABET_TYPES.LATIN ||
                              alphabetType === ALPHABET_TYPES.CYRILLIC;
 
-  // Open vocals tag
+  // Open vocals tag with version comment inside
   xmlOutput += '<vocals count="' + xmlData.vocals.length + '">\n';
+  xmlOutput += '  ' + generateVersionComment();
 
   // Iterate through each line
   lineGroups.forEach((vocalIndices, lineIndex) => {
