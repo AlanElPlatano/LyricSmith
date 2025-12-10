@@ -25,7 +25,7 @@ export function autoMatchSyllables(
     const segment = segments[segmentIdx];
 
     if (segment.isLatin && xmlIndex < xmlSyllables.length) {
-      // For Latin segments, we can try to auto-match
+      // For Latin segments (what EOF exports), we can try to auto-match
       const matched = matchLatinSegment(segment.text, xmlSyllables, xmlIndex);
       result.push(...matched.syllables);
       xmlIndex += matched.consumed;
@@ -34,11 +34,11 @@ export function autoMatchSyllables(
       const chars = splitIntoCharacters(segment.text);
       result.push(...chars);
 
-      // Check if there's a following Latin segment - if so, find alignment
+      // Check if there's a following Latin segment, if so, find alignment
       const hasFollowingLatinSegment = segments.slice(segmentIdx + 1).some(s => s.isLatin);
 
       if (hasFollowingLatinSegment) {
-        // Don't blindly consume XML syllables - instead, try to find where the next
+        // Don't blindly consume XML syllables, instead, try to find where the next
         // Latin segment aligns in the XML
         const nextLatinSegment = segments.slice(segmentIdx + 1).find(s => s.isLatin);
         if (nextLatinSegment) {
@@ -116,7 +116,7 @@ function matchLatinSegment(
       result.push(matchedText);
       xmlIndex++;
     } else {
-      // No match found, check if we should stop matching this segment
+      // By this point no match found, check if we should stop matching this segment
       // This handles cases where the writing system changes mid-segment
       const remainingText = plainTextTrimmed.substring(plainTextIndex);
 
@@ -152,10 +152,8 @@ function cleanSyllable(syllable: string): string {
 }
 
 /**
- * Finds the best match between plain text and XML syllable
- * using fuzzy matching with normalization.
- * This function tries to match the plain text to the XML syllable,
- * including any punctuation that might be present.
+ * Finds the best match between plain text and XML syllable using fuzzy matching with normalization
+ * This function tries to match the plain text to the XML syllable including any punctuation that might be present
  */
 function findBestMatch(
   plainText: string,
@@ -169,7 +167,7 @@ function findBestMatch(
 
   const normalizedXml = normalizeForComparison(xmlSyllable);
 
-  // Check if the original XML syllable has a double-hyphen (real hyphen in word)
+  // Check if the original XML syllable has a double-hyphen (one hyphen in-game)
   const hasWordHyphen = originalXmlSyllable.includes('--');
 
   // Try finding the syllable with some flexibility in length
@@ -223,9 +221,9 @@ export function isPrimarylyLatin(text: string): boolean {
 }
 
 /**
- * Attempts to auto-merge remaining syllables in a line after a manual merge.
+ * Attempts to auto-merge remaining syllables in a line after a manual merge
  * This enables progressive auto-merging: after a user manually merges non-Latin
- * characters, any remaining Latin text can be automatically matched.
+ * characters, any remaining Latin text can be automatically matched
  *
  * @param plainTextSyllables - Current syllables in the plain text line
  * @param xmlSyllables - XML syllables for this line
@@ -250,7 +248,7 @@ export function tryAutoMergeRemainingLine(
   const remainingText = remainingSyllables.join('');
 
   // Check if there's any Latin text in the remaining portion
-  // Even if it's not "primarily Latin", we should try to auto-match Latin words
+  // Even if it's not primarily Latin, we should try to auto-match Latin words
   const hasLatinText = /[a-zA-Z]/.test(remainingText);
   if (!hasLatinText) {
     return plainTextSyllables;
@@ -296,7 +294,7 @@ export function tryAutoMergeRemainingLine(
     return plainTextSyllables;
   }
 
-  // Combine: keep syllables up to and including mergedIndex + auto-merged result
+  // Keep syllables up to and including mergedIndex + auto-merged result
   const prefix = plainTextSyllables.slice(0, checkFromIndex);
   return [...prefix, ...autoMerged];
 }
@@ -316,7 +314,13 @@ function findXmlAlignmentPoint(
   startSearchFrom: number
 ): number {
   // Extract the first Latin word from remaining text
-  const latinWordMatch = remainingText.match(/[a-zA-Z]+/);
+  // We need to skip any leading punctuation and whitespace first
+  const trimmedText = remainingText.trimStart();
+
+  // Match the first sequence of Latin letters (including extended Latin like ß, ö, ä, etc.)
+  // Stop at whitespace or when we hit non-Latin characters
+  // Include À-ÿ (U+00C0 to U+00FF) and other extended Latin ranges
+  const latinWordMatch = trimmedText.match(/[a-zA-ZÀ-ÿ\u0100-\u017F\u0180-\u024F]+/);
   if (!latinWordMatch) {
     return -1;
   }
@@ -332,7 +336,7 @@ function findXmlAlignmentPoint(
 
     // Check if this XML syllable matches the start of the Latin word
     // We need to be careful: "and" should match "and" but not match "A-"
-    // Strategy:
+    // Steps:
     // 1. If XML syllable starts with the word, it's a match (e.g., "and" matches "and")
     // 2. If word starts with XML syllable AND the syllable ends with hyphen (incomplete)
     //    AND the syllable is at least 2 chars (to avoid single-char false matches),

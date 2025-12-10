@@ -17,7 +17,7 @@ export function splitIntoCharacters(text: string): string[] {
       continue;
     }
 
-    // Handle opening punctuation - merge with next character
+    // Handle opening punctuation and merge with next character
     if (LEADING_PUNCTUATION.test(char)) {
       let combined = char;
       i++;
@@ -93,6 +93,34 @@ export function parseTextIntoSyllables(text: string, alphabetType: AlphabetType)
 
 export function normalizeForComparison(text: string): string {
   return text
+    // First, handle special character replacements for extended Latin
+    // This allows matching between different representations (e.g., ß vs ss)
+    // German
+    .replace(/ß/g, 'ss')
+    .replace(/ẞ/g, 'SS')
+    // Ligatures
+    .replace(/æ/g, 'ae')
+    .replace(/Æ/g, 'AE')
+    .replace(/œ/g, 'oe')
+    .replace(/Œ/g, 'OE')
+    // Norwegian/Danish
+    .replace(/ø/g, 'o')
+    .replace(/Ø/g, 'O')
+    .replace(/å/g, 'aa')
+    .replace(/Å/g, 'AA')
+    // Polish
+    .replace(/ł/g, 'l')
+    .replace(/Ł/g, 'L')
+    // Icelandic
+    .replace(/ð/g, 'd')
+    .replace(/Ð/g, 'D')
+    .replace(/þ/g, 'th')
+    .replace(/Þ/g, 'TH')
+    // I could add thousands of others, but this should cover many common cases
+    // If you got here because of a specific character, please open an issue in the repo!
+
+    // Now normalize to NFD to separate diacritics
+    // NFD = Normalization Form Decomposition, to separate base characters from their diacritics
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
@@ -116,7 +144,7 @@ export function segmentTextByAlphabet(text: string): Array<{text: string, isLati
     const char = text[i];
 
     // Punctuation and whitespace inherit the type of the previous segment
-    // This keeps trailing punctuation with non-Latin text (e.g., "Беги," stays together)
+    // This keeps trailing punctuation with non-Latin text
     if (isPunctuation(char) || isWhitespace(char)) {
       currentSegment += char;
       continue;
