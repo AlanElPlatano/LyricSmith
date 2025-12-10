@@ -20,5 +20,8 @@ This song is 100% in japanese, using hiragana, katakana and kanji. It is used to
 ## Ruszkik Haza - Ismeros Arcok
 This song contains Hungarian lyrics, which uses an extended version of the latin script. This test contains no merge actions and its purpose is to test the smart auto-merge feature, verifying the backend correctly matches Hungarian lyrics to their counterparts without diacritics or accents.
 
+## Spaceman - Electric Callboy
+Simple test with no merge actions either, pieces of german lyrics and pieces of english lyrics, mainly tests the handling of ß and ö.
+
 ## Unholy Confessions - Avenged Sevenfold
 This song is entirely in English, and contains no merge actions whatsoever. The purpose of this song is to test the auto-merge feature without extended script usage.
