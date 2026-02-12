@@ -9,10 +9,13 @@ interface LyricLineProps {
   plainTextSyllables: string[] | undefined;
   theme: ThemeClasses;
   onMergeSyllables: (lineIndex: number, syllableIndex: number, rowType: 'xml' | 'plain') => void;
+  onSplitSyllable: (lineIndex: number, syllableIndex: number, rowType: 'xml' | 'plain') => void;
   onResetLine: (lineIndex: number) => void;
+  xmlCanSplitFlags: boolean[];
+  plainCanSplitFlags: boolean[];
 }
 
-export function LyricLine({ lineNumber, lineIndex, xmlSyllables, plainTextSyllables, theme, onMergeSyllables, onResetLine }: LyricLineProps) {
+export function LyricLine({ lineNumber, lineIndex, xmlSyllables, plainTextSyllables, theme, onMergeSyllables, onSplitSyllable, onResetLine, xmlCanSplitFlags, plainCanSplitFlags }: LyricLineProps) {
   const calculateWidth = (text: string) => {
     return Math.max(50, text.length * 8 + 24);
   };
@@ -104,6 +107,8 @@ export function LyricLine({ lineNumber, lineIndex, xmlSyllables, plainTextSyllab
         widths={widths}
         hasHyphens={hasHyphens}
         onSyllableClick={(syllableIndex) => onMergeSyllables(lineIndex, syllableIndex, 'xml')}
+        onSyllableRightClick={(syllableIndex) => onSplitSyllable(lineIndex, syllableIndex, 'xml')}
+        canSplitFlags={xmlCanSplitFlags}
       />
 
       <div className="mb-2" />
@@ -116,7 +121,9 @@ export function LyricLine({ lineNumber, lineIndex, xmlSyllables, plainTextSyllab
           widths={widths}
           hasHyphens={hasHyphens}
           onSyllableClick={(syllableIndex) => onMergeSyllables(lineIndex, syllableIndex, 'plain')}
-      />
+          onSyllableRightClick={(syllableIndex) => onSplitSyllable(lineIndex, syllableIndex, 'plain')}
+          canSplitFlags={plainCanSplitFlags}
+        />
       ) : (
         <span className={`${theme.textMuted} italic text-sm`}>
           No matching plain text line

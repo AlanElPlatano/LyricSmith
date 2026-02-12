@@ -63,6 +63,13 @@ export default function LyricSmith() {
     });
   };
 
+  const handleSplitSyllable = (lineIndex: number, syllableIndex: number, rowType: 'xml' | 'plain') => {
+    dispatch({
+      type: 'split_syllable',
+      payload: { lineIndex, syllableIndex, rowType }
+    });
+  };
+
   const handleResetLine = (lineIndex: number) => {
     dispatch({
       type: 'reset_line',
@@ -210,6 +217,7 @@ export default function LyricSmith() {
         <SyllableDisplay
           state={state}
           onMergeSyllables={handleMergeSyllables}
+          onSplitSyllable={handleSplitSyllable}
           onResetLine={handleResetLine}
         />
       </div>

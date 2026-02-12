@@ -1,10 +1,11 @@
 import type { AppState, MergeAction } from '../types/state.types';
-import { parseXML, groupVocalsIntoLines, mergeVocalsInXMLData, updateLineGroupsAfterMerge } from '../utils/xml.utils';
+import { parseXML, groupVocalsIntoLines, mergeVocalsInXMLData, updateLineGroupsAfterMerge, updateLineGroupsAfterSplit } from '../utils/xml.utils';
 import { detectAlphabet } from '../utils/alphabet.utils';
 import { parseTextIntoSyllables } from '../utils/text.utils';
 import { parseTextIntoSyllablesWithXMLReference } from '../utils/matching.utils';
 import { mergeSyllablesInArray, calculateTotalSyllableCount } from '../utils/syllable.utils';
 import { tryAutoMergeRemainingLine } from '../utils/auto-match.utils';
+import { createXmlLeafArray, createPlainTextLeafArray, createPlainTextLeaf, mergeXmlNodes, mergePlainTextNodes } from '../utils/merge-tree.utils';
 import { addToHistory } from './history';
 
 export function handleXMLImport(state: AppState, xmlString: string): AppState {
@@ -18,6 +19,7 @@ export function handleXMLImport(state: AppState, xmlString: string): AppState {
       xmlData,
       lineGroups,
       xmlSyllables,
+      xmlMergeHistory: createXmlLeafArray(xmlData.vocals),
       originalSyllableCount: xmlData.count,
       currentSyllableCount: xmlData.count,
       error: null
@@ -58,6 +60,7 @@ export function handlePlainTextImport(state: AppState, plainText: string): AppSt
       plainTextRaw: plainText,
       plainTextLines,
       originalPlainTextLines,
+      plainTextMergeHistory: plainTextLines.map(line => createPlainTextLeafArray(line)),
       alphabet,
       error: null
     };
@@ -123,11 +126,18 @@ export function handleMergeSyllables(
       count: newVocals.length
     };
 
+    const newXmlMergeHistory = [...state.xmlMergeHistory];
+    const firstXmlNode = newXmlMergeHistory[actualVocalIndex];
+    const secondXmlNode = newXmlMergeHistory[actualVocalIndex + 1];
+    newXmlMergeHistory[actualVocalIndex] = mergeXmlNodes(firstXmlNode, secondXmlNode, newVocals[actualVocalIndex]);
+    newXmlMergeHistory.splice(actualVocalIndex + 1, 1);
+
     const mergedState = {
       ...state,
       xmlData: newXmlData,
       lineGroups: newLineGroups,
       xmlSyllables: newXmlSyllables,
+      xmlMergeHistory: newXmlMergeHistory,
       currentSyllableCount: newVocals.length,
       originalSyllableCount: state.originalSyllableCount,
       recordedActions: newRecordedActions,
@@ -155,11 +165,33 @@ export function handleMergeSyllables(
     const newPlainTextLines = [...state.plainTextLines];
     newPlainTextLines[lineIndex] = finalLineSyllables;
 
+    const currentLineMergeHistory = [...state.plainTextMergeHistory[lineIndex]];
+    const firstPlainNode = currentLineMergeHistory[syllableIndex];
+    const secondPlainNode = currentLineMergeHistory[syllableIndex + 1];
+    currentLineMergeHistory[syllableIndex] = mergePlainTextNodes(
+      firstPlainNode, secondPlainNode, mergedLineSyllables[syllableIndex]
+    );
+    currentLineMergeHistory.splice(syllableIndex + 1, 1);
+
+    const newPlainTextMergeHistory = [...state.plainTextMergeHistory];
+    const autoMergeStartIndex = syllableIndex + 1;
+
+    if (finalLineSyllables.length < mergedLineSyllables.length) {
+      const preservedHistory = currentLineMergeHistory.slice(0, autoMergeStartIndex);
+      const newTailLeaves = finalLineSyllables
+        .slice(autoMergeStartIndex)
+        .map(text => createPlainTextLeaf(text));
+      newPlainTextMergeHistory[lineIndex] = [...preservedHistory, ...newTailLeaves];
+    } else {
+      newPlainTextMergeHistory[lineIndex] = currentLineMergeHistory;
+    }
+
     const newCount = calculateTotalSyllableCount(newPlainTextLines);
 
     const mergedState = {
       ...state,
       plainTextLines: newPlainTextLines,
+      plainTextMergeHistory: newPlainTextMergeHistory,
       currentSyllableCount: newCount,
       recordedActions: newRecordedActions,
       recordingUndoStack: newUndoStack
@@ -182,13 +214,118 @@ export function handleResetLine(state: AppState, lineIndex: number): AppState {
   const newPlainTextLines = [...state.plainTextLines];
   newPlainTextLines[lineIndex] = [...originalLine];
 
+  const newPlainTextMergeHistory = [...state.plainTextMergeHistory];
+  newPlainTextMergeHistory[lineIndex] = createPlainTextLeafArray(originalLine);
+
   const newCount = calculateTotalSyllableCount(newPlainTextLines);
 
   const resetState = {
     ...state,
     plainTextLines: newPlainTextLines,
+    plainTextMergeHistory: newPlainTextMergeHistory,
     currentSyllableCount: newCount
   };
 
   return addToHistory(resetState);
+}
+
+export function handleSplitSyllable(
+  state: AppState,
+  lineIndex: number,
+  syllableIndex: number,
+  rowType: 'xml' | 'plain'
+): AppState {
+  if (!state.xmlData || lineIndex >= state.lineGroups.length) {
+    return state;
+  }
+
+  if (rowType === 'xml') {
+    return handleXmlSplit(state, lineIndex, syllableIndex);
+  }
+
+  return handlePlainTextSplit(state, lineIndex, syllableIndex);
+}
+
+function handleXmlSplit(state: AppState, lineIndex: number, syllableIndex: number): AppState {
+  const vocalIndices = state.lineGroups[lineIndex];
+  if (syllableIndex >= vocalIndices.length) {
+    return state;
+  }
+
+  const actualVocalIndex = vocalIndices[syllableIndex];
+  const node = state.xmlMergeHistory[actualVocalIndex];
+
+  if (!node?.children) {
+    return state;
+  }
+
+  const [firstChild, secondChild] = node.children;
+
+  const newVocals = [...state.xmlData!.vocals];
+  newVocals.splice(actualVocalIndex, 1, firstChild.vocal, secondChild.vocal);
+
+  const newLineGroups = updateLineGroupsAfterSplit(state.lineGroups, lineIndex, actualVocalIndex);
+  const newXmlSyllables = newVocals.map(vocal => vocal.lyric);
+
+  const newXmlMergeHistory = [...state.xmlMergeHistory];
+  newXmlMergeHistory.splice(actualVocalIndex, 1, firstChild, secondChild);
+
+  const newXmlData = {
+    ...state.xmlData!,
+    vocals: newVocals,
+    count: newVocals.length
+  };
+
+  const splitState = {
+    ...state,
+    xmlData: newXmlData,
+    lineGroups: newLineGroups,
+    xmlSyllables: newXmlSyllables,
+    xmlMergeHistory: newXmlMergeHistory,
+    currentSyllableCount: newVocals.length
+  };
+
+  return addToHistory(splitState);
+}
+
+function handlePlainTextSplit(state: AppState, lineIndex: number, syllableIndex: number): AppState {
+  if (lineIndex >= state.plainTextLines.length) {
+    return state;
+  }
+
+  const lineMergeHistory = state.plainTextMergeHistory[lineIndex];
+  if (!lineMergeHistory || syllableIndex >= lineMergeHistory.length) {
+    return state;
+  }
+
+  const node = lineMergeHistory[syllableIndex];
+
+  if (!node?.children) {
+    return state;
+  }
+
+  const [firstChild, secondChild] = node.children;
+
+  const newLineSyllables = [...state.plainTextLines[lineIndex]];
+  newLineSyllables.splice(syllableIndex, 1, firstChild.text, secondChild.text);
+
+  const newPlainTextLines = [...state.plainTextLines];
+  newPlainTextLines[lineIndex] = newLineSyllables;
+
+  const newLineMergeHistory = [...lineMergeHistory];
+  newLineMergeHistory.splice(syllableIndex, 1, firstChild, secondChild);
+
+  const newPlainTextMergeHistory = [...state.plainTextMergeHistory];
+  newPlainTextMergeHistory[lineIndex] = newLineMergeHistory;
+
+  const newCount = calculateTotalSyllableCount(newPlainTextLines);
+
+  const splitState = {
+    ...state,
+    plainTextLines: newPlainTextLines,
+    plainTextMergeHistory: newPlainTextMergeHistory,
+    currentSyllableCount: newCount
+  };
+
+  return addToHistory(splitState);
 }

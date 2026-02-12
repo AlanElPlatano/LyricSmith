@@ -14,6 +14,16 @@ export interface ParsedXMLData {
   count: number;
 }
 
+export interface PlainTextMergeNode {
+  text: string;
+  children: [PlainTextMergeNode, PlainTextMergeNode] | null;
+}
+
+export interface XmlMergeNode {
+  vocal: VocalData;
+  children: [XmlMergeNode, XmlMergeNode] | null;
+}
+
 export interface ThemeClasses {
   background: string;
   text: string;

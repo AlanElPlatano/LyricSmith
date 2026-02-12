@@ -26,5 +26,6 @@ export const ACTION_TYPES = {
   START_RECORDING: 'start_recording' as const,
   STOP_RECORDING: 'stop_recording' as const,
   CLEAR_RECORDING: 'clear_recording' as const,
-  SET_RECORDING_TEST_NAME: 'set_recording_test_name' as const
+  SET_RECORDING_TEST_NAME: 'set_recording_test_name' as const,
+  SPLIT_SYLLABLE: 'split_syllable' as const
 };

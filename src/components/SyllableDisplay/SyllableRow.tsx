@@ -8,9 +8,11 @@ interface SyllableRowProps {
   widths?: number[];
   hasHyphens?: boolean[];
   onSyllableClick?: (index: number) => void;
+  onSyllableRightClick?: (index: number) => void;
+  canSplitFlags?: boolean[];
 }
 
-export function SyllableRow({ syllables, variant, theme, widths, hasHyphens, onSyllableClick }: SyllableRowProps) {
+export function SyllableRow({ syllables, variant, theme, widths, hasHyphens, onSyllableClick, onSyllableRightClick, canSplitFlags }: SyllableRowProps) {
   return (
     <div className="flex flex-wrap gap-1">
       {syllables.map((syllable, index) => {
@@ -27,8 +29,10 @@ export function SyllableRow({ syllables, variant, theme, widths, hasHyphens, onS
               variant={variant}
               theme={theme}
               onClick={onSyllableClick ? () => onSyllableClick(index) : undefined}
+              onContextMenu={onSyllableRightClick ? () => onSyllableRightClick(index) : undefined}
               disabled={isLastSyllable}
               showHyphen={showHyphen}
+              canSplit={canSplitFlags?.[index] ?? false}
             >
               {syllable}
             </SyllableButton>

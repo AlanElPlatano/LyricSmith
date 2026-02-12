@@ -1,4 +1,4 @@
-import type { ParsedXMLData, AlphabetType } from './index';
+import type { ParsedXMLData, AlphabetType, PlainTextMergeNode, XmlMergeNode } from './index';
 
 export interface HistoryState {
   plainTextLines: string[][];
@@ -6,6 +6,8 @@ export interface HistoryState {
   currentSyllableCount: number;
   xmlData: ParsedXMLData | null;
   lineGroups: number[][];
+  plainTextMergeHistory: PlainTextMergeNode[][];
+  xmlMergeHistory: XmlMergeNode[];
 }
 
 export interface MergeAction {
@@ -23,6 +25,8 @@ export interface AppState {
   plainTextLines: string[][];
   originalPlainTextLines: string[][];
   xmlSyllables: string[];
+  plainTextMergeHistory: PlainTextMergeNode[][];
+  xmlMergeHistory: XmlMergeNode[];
   alphabet: AlphabetType;
   originalSyllableCount: number;
   currentSyllableCount: number;
@@ -43,6 +47,7 @@ export type ActionType =
   | { type: 'set_error'; payload: string }
   | { type: 'clear_error' }
   | { type: 'merge_syllables'; payload: { lineIndex: number; syllableIndex: number; rowType: 'xml' | 'plain' } }
+  | { type: 'split_syllable'; payload: { lineIndex: number; syllableIndex: number; rowType: 'xml' | 'plain' } }
   | { type: 'reset_line'; payload: { lineIndex: number } }
   | { type: 'undo' }
   | { type: 'redo' }

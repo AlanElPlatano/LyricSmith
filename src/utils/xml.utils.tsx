@@ -111,3 +111,25 @@ export function updateLineGroupsAfterMerge(
   
   return newLineGroups;
 }
+
+export function updateLineGroupsAfterSplit(
+  lineGroups: number[][],
+  lineIndex: number,
+  splitVocalIndex: number
+): number[][] {
+  const newLineGroups = lineGroups.map(group => [...group]);
+
+  for (let i = 0; i < newLineGroups.length; i++) {
+    newLineGroups[i] = newLineGroups[i].map(idx =>
+      idx > splitVocalIndex ? idx + 1 : idx
+    );
+  }
+
+  const targetGroup = newLineGroups[lineIndex];
+  const positionInLine = targetGroup.indexOf(splitVocalIndex);
+  if (positionInLine !== -1) {
+    targetGroup.splice(positionInLine + 1, 0, splitVocalIndex + 1);
+  }
+
+  return newLineGroups;
+}

@@ -9,7 +9,9 @@ export function createHistorySnapshot(state: AppState): HistoryState {
       ...state.xmlData,
       vocals: JSON.parse(JSON.stringify(state.xmlData.vocals))
     } : null,
-    lineGroups: JSON.parse(JSON.stringify(state.lineGroups))
+    lineGroups: JSON.parse(JSON.stringify(state.lineGroups)),
+    plainTextMergeHistory: JSON.parse(JSON.stringify(state.plainTextMergeHistory)),
+    xmlMergeHistory: JSON.parse(JSON.stringify(state.xmlMergeHistory))
   };
 }
 
@@ -38,6 +40,8 @@ export function restoreFromHistory(state: AppState, snapshot: HistoryState): App
       vocals: JSON.parse(JSON.stringify(snapshot.xmlData.vocals))
     } : null,
     lineGroups: JSON.parse(JSON.stringify(snapshot.lineGroups)),
+    plainTextMergeHistory: JSON.parse(JSON.stringify(snapshot.plainTextMergeHistory)),
+    xmlMergeHistory: JSON.parse(JSON.stringify(snapshot.xmlMergeHistory)),
     originalSyllableCount: snapshot.xmlData?.count || state.originalSyllableCount
   };
 }
