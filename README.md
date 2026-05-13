@@ -6,29 +6,32 @@ A web-based tool for replacing romanized lyrics with native scripts in Rocksmith
 
 ## The Problem
 
-Editor On Fire (EOF) doesn't support characters outside the Latin alphabet. When creating custom songs with lyrics in Cyrillic, Japanese, Chinese, or extended Latin scripts (Hungarian, Polish, etc.), charters have to:
+Editor On Fire (EOF) doesn't support characters outside a limited version of the Latin alphabet. When creating custom songs with lyrics in Cyrillic, Japanese, Chinese, or extended Latin scripts (Hungarian, Polish, etc.), charters have to:
 1. Sync lyrics using only latin text in EOF
-2. Manually edit the exported XML file to replace each syllable
-3. Spend up to an hour on a repetitive process for a single song
+2. Manually edit the exported XML text file to replace each syllable one by one
+3. Spend up to an hour on a repetitive process for a just a single song
 
 **LyricSmith helps in this process this by providing a syllable matching interface that reduces this process to just a few minutes (or even a few seconds).**
 
 ## Features
 
 - **Multi-alphabet support**: Works with Cyrillic, CJK (Chinese/Japanese/Korean), Arabic, and extended Latin scripts
-- **Automatic parsing**: Intelligently splits matching syllables if they are also in latin script (useful for songs with mixed scripts) with support for languages like Hungarian, Polish, Norwegian, Portuguese, etc that contain modified versions of the latin script.
+- **Automatic parsing**: Intelligently splits matching syllables if they are also in latin script (useful for songs with mixed scripts) with support for languages like Hungarian, Polish, Norwegian, Portuguese, etc that contain modified versions of the latin script
 - **Visual matching**: Click syllables to merge them until they align with your target text
 - **Real-time validation**: Line count verification and syllable counter
 - **Undo/Redo**: Full history support for all edits
 - **100% client-side**: No data leaves your browser
 - **Zero installation**: Web-based tool, works anywhere
-- **Visual guides**: See the green/red ribbon on the left of each lyric line to check whether the syllable counts match between both rows, hover this ribbon with your mouse for more data.
-- **Line reset**: Click the X on the top right of each lyric line to undo all changes to the line.
+- **Visual guides**: See the green/red ribbon on the left of each lyric line to check whether the syllable counts match between both rows, hover this ribbon with your mouse for more data
+- **Line reset**: Click the X on the top right of each lyric line to undo all changes to the line
 
 ## How It Works
 
+0. **Sync lyrics in EOF**
+   - It is assumed you already did this, but if not, sync your lyrics in EOF like you normally would
+   - If your song uses a special alphabet (cyrilic, CJK, etc) then first convert it into the latin alphabet so EOF can understand it, google translate can do this by just pasting the original lyrics into its UI
 1. **Import your files**
-   - Upload the XML file exported from EOF (contains timing data with romanized lyrics)
+   - Once you finish the lyrics, upload the XML file exported from EOF (the one with all the times for each syllable)
    - Upload or paste plain text with the correct lyrics in the target alphabet
 
 2. **Automatic processing**
@@ -43,8 +46,9 @@ Editor On Fire (EOF) doesn't support characters outside the Latin alphabet. When
    - The syllable counter shows your progress
 
 4. **Export**
-   - Download the modified XML with timing data preserved
+   - Download the new XML
    - Import into DLCBuilder
+   - If necessary (for russian or CJK writing systems) use RSFontGenerator to create a font that Rocksmith can understand, you can find this in the pinned messages in #alpha in the CustomsForge's discord
 
 ## Getting Started
 
@@ -52,6 +56,8 @@ If you are a Rocksmith charter and don't wanna deal with code, just go to:
 ```
 https://alanelplatano.github.io/LyricSmith/
 ```
+
+You can find a fully working version of the project there, quick and easy
 
 ### Local Development
 
@@ -96,4 +102,4 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 This project is open source and available for the Rocksmith 2014 custom song community. Big shoutout to the CustomsForge and its team.
 
-**Disclaimer**: This software is NOT associated with Ubisoft or the Rocksmith team in any way or form.
+**Disclaimer**: This software is NOT associated with Ubisoft or the Rocksmith team in any shape or form.
