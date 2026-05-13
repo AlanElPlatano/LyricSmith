@@ -1,0 +1,29 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# DO NOT remove this line, we need the package-lock.json in the repo for the CI/CD pipeline to work correctly
+# package-lock.json
+
+node_modules
+dist
+dist-ssr
+*.local
+test-output
+docs
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
