@@ -7,7 +7,9 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-package-lock.json
+# DO NOT remove this line, we need the package-lock.json in the repo for the CI/CD pipeline to work correctly
+# package-lock.json
+
 node_modules
 dist
 dist-ssr
