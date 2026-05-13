@@ -32,6 +32,16 @@ export function mergeXmlNodes(
   return { vocal: mergedVocal, children: [first, second] };
 }
 
+export function expandXmlToLeaves(node: XmlMergeNode): XmlMergeNode[] {
+  if (!node.children) {
+    return [node];
+  }
+  return [
+    ...expandXmlToLeaves(node.children[0]),
+    ...expandXmlToLeaves(node.children[1])
+  ];
+}
+
 export function canSplitPlainTextNode(node: PlainTextMergeNode): boolean {
   return node.children !== null;
 }

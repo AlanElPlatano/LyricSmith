@@ -5,7 +5,7 @@ import { parseTextIntoSyllables } from '../utils/text.utils';
 import { parseTextIntoSyllablesWithXMLReference } from '../utils/matching.utils';
 import { mergeSyllablesInArray, calculateTotalSyllableCount } from '../utils/syllable.utils';
 import { tryAutoMergeRemainingLine } from '../utils/auto-match.utils';
-import { createXmlLeafArray, createPlainTextLeafArray, createPlainTextLeaf, mergeXmlNodes, mergePlainTextNodes } from '../utils/merge-tree.utils';
+import { createXmlLeafArray, createPlainTextLeafArray, createPlainTextLeaf, mergeXmlNodes, mergePlainTextNodes, expandXmlToLeaves } from '../utils/merge-tree.utils';
 import { addToHistory } from './history';
 
 export function handleXMLImport(state: AppState, xmlString: string): AppState {
@@ -202,28 +202,59 @@ export function handleMergeSyllables(
 }
 
 export function handleResetLine(state: AppState, lineIndex: number): AppState {
+  if (!state.xmlData || lineIndex >= state.lineGroups.length) {
+    return state;
+  }
+
   if (lineIndex >= state.originalPlainTextLines.length || lineIndex >= state.plainTextLines.length) {
     return state;
   }
 
-  const originalLine = state.originalPlainTextLines[lineIndex];
-  if (!originalLine) {
+  const originalPlainLine = state.originalPlainTextLines[lineIndex];
+  if (!originalPlainLine) {
     return state;
   }
 
   const newPlainTextLines = [...state.plainTextLines];
-  newPlainTextLines[lineIndex] = [...originalLine];
+  newPlainTextLines[lineIndex] = [...originalPlainLine];
 
   const newPlainTextMergeHistory = [...state.plainTextMergeHistory];
-  newPlainTextMergeHistory[lineIndex] = createPlainTextLeafArray(originalLine);
+  newPlainTextMergeHistory[lineIndex] = createPlainTextLeafArray(originalPlainLine);
 
-  const newCount = calculateTotalSyllableCount(newPlainTextLines);
+  const vocalIndices = state.lineGroups[lineIndex];
+  const expandedXmlNodes = vocalIndices.flatMap(idx => expandXmlToLeaves(state.xmlMergeHistory[idx]));
+  const startVocalIdx = vocalIndices[0] ?? 0;
+  const delta = expandedXmlNodes.length - vocalIndices.length;
+
+  const newVocals = [...state.xmlData.vocals];
+  newVocals.splice(startVocalIdx, vocalIndices.length, ...expandedXmlNodes.map(n => n.vocal));
+
+  const newXmlMergeHistory = [...state.xmlMergeHistory];
+  newXmlMergeHistory.splice(startVocalIdx, vocalIndices.length, ...expandedXmlNodes);
+
+  const newLineGroups = state.lineGroups.map((group, idx) => {
+    if (idx < lineIndex) return group;
+    if (idx === lineIndex) {
+      return Array.from({ length: expandedXmlNodes.length }, (_, i) => startVocalIdx + i);
+    }
+    return group.map(vocalIdx => vocalIdx + delta);
+  });
+
+  const newXmlData = {
+    ...state.xmlData,
+    vocals: newVocals,
+    count: newVocals.length
+  };
 
   const resetState = {
     ...state,
     plainTextLines: newPlainTextLines,
     plainTextMergeHistory: newPlainTextMergeHistory,
-    currentSyllableCount: newCount
+    xmlData: newXmlData,
+    xmlSyllables: newVocals.map(vocal => vocal.lyric),
+    xmlMergeHistory: newXmlMergeHistory,
+    lineGroups: newLineGroups,
+    currentSyllableCount: newVocals.length
   };
 
   return addToHistory(resetState);
