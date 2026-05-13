@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Github } from 'lucide-react';
 import type { ThemeClasses } from '../../types';
 import { APP_VERSION } from '../../utils/version';
 import { HelpModal } from '../HelpModal/HelpModal';
@@ -13,6 +14,15 @@ export function Header({ theme }: HeaderProps) {
   return (
     <header className="mb-8 relative">
       <div className="absolute top-0 right-0 flex items-center gap-3">
+        <a
+          href="https://github.com/AlanElPlatano/LyricSmith"
+          target="_blank"
+          rel="noopener noreferrer"
+          className={`${theme.textMuted} hover:${theme.text} transition-colors`}
+          aria-label="View on GitHub"
+        >
+          <Github size={18} />
+        </a>
         <button
           onClick={() => setIsHelpOpen(true)}
           className={`w-6 h-6 rounded-full border ${theme.border} ${theme.textMuted} hover:${theme.text} text-sm font-bold flex items-center justify-center transition-colors`}
